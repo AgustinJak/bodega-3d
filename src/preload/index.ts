@@ -32,6 +32,7 @@ const api = {
   addImages: (modelId: string, sourcePaths: string[]) => ipcRenderer.invoke('images:add', modelId, sourcePaths),
   deleteImage: (imageId: string) => ipcRenderer.invoke('images:delete', imageId),
   setThumbnail: (modelId: string, filePath: string) => ipcRenderer.invoke('images:setThumbnail', modelId, filePath),
+  copyImage: (filePath: string) => ipcRenderer.invoke('clipboard:copyImage', filePath),
 
   // Settings & stats
   getSettings: () => ipcRenderer.invoke('settings:get'),

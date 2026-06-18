@@ -33,6 +33,7 @@ interface BodegaApi {
   addImages: (modelId: string, sourcePaths: string[]) => Promise<ModelImage[]>
   deleteImage: (imageId: string) => Promise<boolean>
   setThumbnail: (modelId: string, filePath: string) => Promise<boolean>
+  copyImage: (filePath: string) => Promise<boolean>
   getSettings: () => Promise<Record<string, string>>
   setSetting: (key: string, value: string) => Promise<boolean>
   getStats: () => Promise<Stats>

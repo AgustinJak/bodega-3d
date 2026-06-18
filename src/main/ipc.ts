@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
+import { ipcMain, dialog, BrowserWindow, shell, clipboard, nativeImage } from 'electron'
 import { randomUUID } from 'crypto'
 import { rmSync, existsSync, copyFileSync, mkdirSync } from 'fs'
 import { spawn } from 'child_process'
@@ -261,6 +261,13 @@ export function registerIpc(): void {
   })
   ipcMain.handle('images:setThumbnail', (_e, modelId: string, filePath: string) => {
     getDb().prepare('UPDATE models SET thumbnailPath = ?, updatedAt = ? WHERE id = ?').run(filePath, now(), modelId)
+    return true
+  })
+  ipcMain.handle('clipboard:copyImage', (_e, filePath: string) => {
+    if (!filePath || !existsSync(filePath)) return false
+    const img = nativeImage.createFromPath(filePath)
+    if (img.isEmpty()) return false
+    clipboard.writeImage(img)
     return true
   })
 

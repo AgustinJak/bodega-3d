@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Pencil, Trash2, Printer, Plus, Minus, Calculator, ImagePlus, ImageOff, Star, X, Layers, FolderOpen
+  ArrowLeft, Pencil, Trash2, Printer, Plus, Minus, Calculator, ImagePlus, ImageOff, Star, X, Layers, FolderOpen, Copy, Check
 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { ModelDetail } from '../types'
@@ -13,6 +13,7 @@ export default function ModeloDetalle() {
   const nav = useNavigate()
   const [model, setModel] = useState<ModelDetail | null>(null)
   const [active, setActive] = useState(0)
+  const [copied, setCopied] = useState(false)
 
   const load = useCallback(() => {
     if (id) api.getModel(id).then((m) => setModel(m))
@@ -47,6 +48,15 @@ export default function ModeloDetalle() {
     await api.deleteImage(imageId)
     setActive(0)
     load()
+  }
+
+  async function copyMainImage() {
+    if (!mainImg) return
+    const ok = await api.copyImage(mainImg)
+    if (ok) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    }
   }
 
   async function del() {
@@ -117,9 +127,19 @@ export default function ModeloDetalle() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Gallery */}
         <div>
-          <div className="aspect-square rounded-xl bg-navy border border-lavanda/10 flex items-center justify-center overflow-hidden">
+          <div className="relative aspect-square rounded-xl bg-navy border border-lavanda/10 flex items-center justify-center overflow-hidden">
             {mainImg ? (
-              <img src={mediaUrl(mainImg)} alt={model.name} className="w-full h-full object-contain" />
+              <>
+                <img src={mediaUrl(mainImg)} alt={model.name} className="w-full h-full object-contain" />
+                <button
+                  onClick={copyMainImage}
+                  title="Copiar imagen al portapapeles"
+                  className="absolute top-2 right-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-navy-deep/80 backdrop-blur text-xs text-niebla hover:bg-navy-deep border border-lavanda/15"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? 'Copiada' : 'Copiar'}
+                </button>
+              </>
             ) : (
               <ImageOff className="w-12 h-12 text-lavanda/20" />
             )}

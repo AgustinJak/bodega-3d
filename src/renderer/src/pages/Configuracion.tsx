@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
-  Coins, Boxes, Tag as TagIcon, Layers, Layers3, Database, Save, Check, Plus, Trash2, Pencil, FolderOpen, HardDriveDownload, X
+  Coins, Boxes, Tag as TagIcon, Layers, Layers3, Database, Save, Check, Plus, Trash2, Pencil, FolderOpen, HardDriveDownload, X, RefreshCw, ExternalLink, Download
 } from 'lucide-react'
 import { api } from '../lib/api'
+import type { UpdateStatus } from '../lib/api'
 import { settingsFromMap, DEFAULT_COST_SETTINGS } from '../lib/calc'
 import type { CostSettings, Category, Tag } from '../types'
 
-type Section = 'costos' | 'listas' | 'categorias' | 'tags' | 'slicer' | 'datos'
+type Section = 'costos' | 'listas' | 'categorias' | 'tags' | 'slicer' | 'datos' | 'updates'
 
 const TABS: { id: Section; label: string; icon: any }[] = [
   { id: 'costos', label: 'Costos', icon: Coins },
@@ -14,7 +15,8 @@ const TABS: { id: Section; label: string; icon: any }[] = [
   { id: 'categorias', label: 'Categorías', icon: Layers },
   { id: 'tags', label: 'Tags', icon: TagIcon },
   { id: 'slicer', label: 'BambuStudio', icon: Layers3 },
-  { id: 'datos', label: 'Datos', icon: Database }
+  { id: 'datos', label: 'Datos', icon: Database },
+  { id: 'updates', label: 'Actualizaciones', icon: RefreshCw }
 ]
 
 export default function Configuracion() {
@@ -41,6 +43,7 @@ export default function Configuracion() {
       {tab === 'tags' && <TagsSection />}
       {tab === 'slicer' && <SlicerSection />}
       {tab === 'datos' && <DatosSection />}
+      {tab === 'updates' && <UpdatesSection />}
     </div>
   )
 }
@@ -374,6 +377,102 @@ function DatosSection() {
         </button>
       </div>
       {msg && <p className="text-xs text-green-400 break-all">{msg}</p>}
+    </div>
+  )
+}
+
+/* ---------------- Actualizaciones ---------------- */
+function UpdatesSection() {
+  const [version, setVersion] = useState('')
+  const [status, setStatus] = useState<UpdateStatus | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+
+  useEffect(() => {
+    api.getAppVersion().then(setVersion)
+    const off = api.onUpdateStatus((d) => {
+      setStatus(d)
+      if (d.state !== 'checking') setBusy(false)
+    })
+    return off
+  }, [])
+
+  async function check() {
+    setNote('')
+    setStatus(null)
+    setBusy(true)
+    const r = await api.checkUpdates()
+    if (!r.packaged) {
+      setBusy(false)
+      setNote('Las actualizaciones automáticas funcionan en la app instalada (no en modo desarrollo).')
+    }
+  }
+
+  const label = () => {
+    switch (status?.state) {
+      case 'checking':
+        return 'Buscando actualizaciones…'
+      case 'none':
+        return 'Estás usando la última versión ✓'
+      case 'available':
+        return `Nueva versión disponible: v${status.version}`
+      case 'downloading':
+        return `Descargando… ${status.percent ?? 0}%`
+      case 'downloaded':
+        return `Versión v${status.version} lista para instalar`
+      case 'error':
+        return 'No se pudo verificar (revisá tu conexión).'
+      default:
+        return ''
+    }
+  }
+
+  return (
+    <div className="max-w-2xl rounded-xl bg-navy border border-lavanda/10 p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-niebla">Versión instalada</h3>
+          <p className="text-2xl font-bold text-ambar mt-1">{version ? `v${version}` : '—'}</p>
+        </div>
+        <button
+          onClick={check}
+          disabled={busy}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ambar text-navy-deep font-medium text-sm hover:bg-ambar-light disabled:opacity-50"
+        >
+          <RefreshCw className={`w-4 h-4 ${busy ? 'animate-spin' : ''}`} /> Buscar actualizaciones
+        </button>
+      </div>
+
+      {label() && (
+        <div className="rounded-lg bg-navy-deep px-3 py-2 text-sm text-lavanda-light flex items-center justify-between gap-3">
+          <span>{label()}</span>
+          {status?.state === 'available' && (
+            <button
+              onClick={() => api.downloadUpdate()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ambar text-navy-deep text-xs font-medium hover:bg-ambar-light shrink-0"
+            >
+              <Download className="w-3.5 h-3.5" /> Actualizar ahora
+            </button>
+          )}
+          {status?.state === 'downloaded' && (
+            <button
+              onClick={() => api.installUpdate()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ambar text-navy-deep text-xs font-medium hover:bg-ambar-light shrink-0"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Reiniciar e instalar
+            </button>
+          )}
+        </div>
+      )}
+
+      {note && <p className="text-xs text-lavanda/60">{note}</p>}
+
+      <button
+        onClick={() => api.openReleases()}
+        className="flex items-center gap-2 text-xs text-lavanda/60 hover:text-ambar"
+      >
+        <ExternalLink className="w-3.5 h-3.5" /> Ver todas las versiones en GitHub
+      </button>
     </div>
   )
 }
