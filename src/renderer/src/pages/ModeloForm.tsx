@@ -75,6 +75,7 @@ export default function ModeloForm() {
     setSaving(true)
     try {
       if (isEdit && id) {
+        // (rama edición)
         await api.updateModel(id, {
           name: name.trim(),
           categoryId,
@@ -108,6 +109,9 @@ export default function ModeloForm() {
         })
         nav(`/modelos/${imported.id}`)
       }
+    } catch (e: any) {
+      console.error('Error al guardar el modelo:', e)
+      alert('No se pudo guardar el modelo:\n\n' + (e?.message || String(e)))
     } finally {
       setSaving(false)
     }

@@ -78,7 +78,7 @@ export function registerIpc(): void {
     const ts = now()
     db.prepare(
       `INSERT INTO models (id, name, description, filePath, fileName, fileSize, fileType, thumbnailPath,
-        categoryId, notes, printCount, createdAt, updatedAt, printTimeSeconds, filamentGrams, costData, specs)
+        categoryId, notes, printCount, createdAt, updatedAt, printTimeSeconds, filamentGrams, costData)
        VALUES (@id, @name, @description, @filePath, @fileName, @fileSize, @fileType, @thumbnailPath,
         @categoryId, @notes, @printCount, @createdAt, @updatedAt, @printTimeSeconds, @filamentGrams, @costData)`
     ).run({
