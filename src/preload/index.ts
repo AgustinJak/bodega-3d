@@ -56,6 +56,7 @@ const api = {
     return () => ipcRenderer.removeListener('update:status', listener)
   },
   checkUpdates: () => ipcRenderer.invoke('updater:check'),
+  downloadUpdate: () => ipcRenderer.invoke('updater:download'),
   installUpdate: () => ipcRenderer.invoke('updater:install'),
   openReleases: () => ipcRenderer.invoke('updater:openReleases'),
   getAppVersion: () => ipcRenderer.invoke('updater:currentVersion')

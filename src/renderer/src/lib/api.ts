@@ -47,6 +47,7 @@ interface BodegaApi {
   showInFolder: (filePath: string) => Promise<boolean>
   onUpdateStatus: (cb: (data: UpdateStatus) => void) => () => void
   checkUpdates: () => Promise<{ packaged: boolean }>
+  downloadUpdate: () => Promise<boolean>
   installUpdate: () => Promise<void>
   openReleases: () => Promise<void>
   getAppVersion: () => Promise<string>

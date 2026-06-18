@@ -4,7 +4,7 @@ import { app, ipcMain, shell, type BrowserWindow } from 'electron'
 const RELEASES_URL = 'https://github.com/AgustinJak/bodega-3d/releases/latest'
 
 export function setupUpdater(getWindow: () => BrowserWindow | null): void {
-  autoUpdater.autoDownload = true
+  autoUpdater.autoDownload = false // no descargar sin permiso: primero preguntamos
   autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.allowPrerelease = false
 
@@ -27,6 +27,10 @@ export function setupUpdater(getWindow: () => BrowserWindow | null): void {
     if (!app.isPackaged) return { packaged: false }
     autoUpdater.checkForUpdates().catch((e) => send({ state: 'error', error: String(e?.message || e) }))
     return { packaged: true }
+  })
+  ipcMain.handle('updater:download', () => {
+    autoUpdater.downloadUpdate().catch((e) => send({ state: 'error', error: String(e?.message || e) }))
+    return true
   })
   ipcMain.handle('updater:install', () => {
     autoUpdater.quitAndInstall()

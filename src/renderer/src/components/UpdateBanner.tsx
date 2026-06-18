@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Download, RefreshCw, X, AlertCircle, Rocket } from 'lucide-react'
+import { Download, RefreshCw, X, AlertCircle, Rocket, Clock } from 'lucide-react'
 import { api } from '../lib/api'
 import type { UpdateStatus } from '../lib/api'
 
@@ -21,27 +21,56 @@ export default function UpdateBanner() {
   const base =
     'fixed bottom-5 right-5 z-50 w-80 rounded-xl border shadow-2xl p-4 bg-navy text-niebla animate-[slide-up_0.2s_ease-out]'
 
-  if (status.state === 'available' || status.state === 'downloading') {
+  // 1) Disponible — preguntar antes de descargar
+  if (status.state === 'available') {
     return (
-      <div className={`${base} border-lavanda/20`}>
+      <div className={`${base} border-ambar/40`}>
         <div className="flex items-start gap-3">
           <Download className="w-5 h-5 text-ambar shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Nueva versión {status.version ? `v${status.version}` : ''}</p>
+          <div className="flex-1">
+            <p className="text-sm font-medium">Nueva versión disponible</p>
             <p className="text-xs text-lavanda/60 mt-0.5">
-              Descargando… {status.state === 'downloading' && status.percent != null ? `${status.percent}%` : ''}
+              {status.version ? `Versión v${status.version}` : 'Hay una actualización'} lista para descargar.
             </p>
-            {status.state === 'downloading' && (
-              <div className="mt-2 h-1.5 rounded-full bg-lavanda/10 overflow-hidden">
-                <div className="h-full bg-ambar transition-all" style={{ width: `${status.percent ?? 0}%` }} />
-              </div>
-            )}
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => api.downloadUpdate()}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-ambar text-navy-deep font-medium text-sm hover:bg-ambar-light"
+              >
+                <Download className="w-4 h-4" /> Actualizar ahora
+              </button>
+              <button
+                onClick={() => setDismissed(true)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-lavanda/25 text-sm text-lavanda-light hover:bg-lavanda/5"
+              >
+                <Clock className="w-4 h-4" /> Más tarde
+              </button>
+            </div>
           </div>
         </div>
       </div>
     )
   }
 
+  // 2) Descargando
+  if (status.state === 'downloading') {
+    return (
+      <div className={`${base} border-lavanda/20`}>
+        <div className="flex items-start gap-3">
+          <Download className="w-5 h-5 text-ambar shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Descargando actualización…</p>
+            <p className="text-xs text-lavanda/60 mt-0.5">{status.percent != null ? `${status.percent}%` : ''}</p>
+            <div className="mt-2 h-1.5 rounded-full bg-lavanda/10 overflow-hidden">
+              <div className="h-full bg-ambar transition-all" style={{ width: `${status.percent ?? 0}%` }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 3) Descargada — lista para instalar
   if (status.state === 'downloaded') {
     return (
       <div className={`${base} border-ambar/40`}>
@@ -53,21 +82,29 @@ export default function UpdateBanner() {
           <div className="flex-1">
             <p className="text-sm font-medium">¡Actualización lista!</p>
             <p className="text-xs text-lavanda/60 mt-0.5">
-              Versión {status.version ? `v${status.version}` : 'nueva'} descargada. Reiniciá para instalarla.
+              {status.version ? `v${status.version}` : 'La versión nueva'} se instalará al reiniciar.
             </p>
-            <button
-              onClick={() => api.installUpdate()}
-              className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-ambar text-navy-deep font-medium text-sm hover:bg-ambar-light"
-            >
-              <RefreshCw className="w-4 h-4" /> Reiniciar e instalar
-            </button>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => api.installUpdate()}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-ambar text-navy-deep font-medium text-sm hover:bg-ambar-light"
+              >
+                <RefreshCw className="w-4 h-4" /> Reiniciar e instalar
+              </button>
+              <button
+                onClick={() => setDismissed(true)}
+                className="flex items-center justify-center px-3 py-2 rounded-lg border border-lavanda/25 text-sm text-lavanda-light hover:bg-lavanda/5"
+              >
+                Más tarde
+              </button>
+            </div>
           </div>
         </div>
       </div>
     )
   }
 
-  // error
+  // 4) Error
   return (
     <div className={`${base} border-red-500/30`}>
       <button onClick={() => setDismissed(true)} className="absolute top-2 right-2 text-lavanda/40 hover:text-niebla">
