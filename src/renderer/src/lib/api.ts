@@ -25,6 +25,11 @@ interface BodegaApi {
   updateCategory: (id: string, input: { name: string; color?: string }) => Promise<boolean>
   deleteCategory: (id: string) => Promise<boolean>
   listTags: () => Promise<Tag[]>
+  renameTag: (id: string, name: string) => Promise<boolean>
+  deleteTag: (id: string) => Promise<boolean>
+  getPaths: () => Promise<{ storageDir: string; dbPath: string; backupsDir: string; modelsDir: string }>
+  openPath: (p: string) => Promise<string>
+  backupNow: () => Promise<string>
   addImages: (modelId: string, sourcePaths: string[]) => Promise<ModelImage[]>
   deleteImage: (imageId: string) => Promise<boolean>
   setThumbnail: (modelId: string, filePath: string) => Promise<boolean>

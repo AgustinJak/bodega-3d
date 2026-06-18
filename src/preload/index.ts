@@ -20,6 +20,13 @@ const api = {
 
   // Tags
   listTags: () => ipcRenderer.invoke('tags:list'),
+  renameTag: (id: string, name: string) => ipcRenderer.invoke('tags:rename', id, name),
+  deleteTag: (id: string) => ipcRenderer.invoke('tags:delete', id),
+
+  // App data / paths / backup
+  getPaths: () => ipcRenderer.invoke('app:getPaths'),
+  openPath: (p: string) => ipcRenderer.invoke('app:openPath', p),
+  backupNow: () => ipcRenderer.invoke('app:backupNow'),
 
   // Images
   addImages: (modelId: string, sourcePaths: string[]) => ipcRenderer.invoke('images:add', modelId, sourcePaths),

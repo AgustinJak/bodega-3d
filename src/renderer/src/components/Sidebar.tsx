@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Boxes, Calculator, Layers } from 'lucide-react'
+import { LayoutDashboard, Boxes, Calculator, Layers, Settings } from 'lucide-react'
 import { api } from '../lib/api'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/modelos', label: 'Modelos', icon: Boxes, end: false },
-  { to: '/calculadora', label: 'Calculadora', icon: Calculator, end: false }
+  { to: '/calculadora', label: 'Calculadora', icon: Calculator, end: false },
+  { to: '/configuracion', label: 'Configuración', icon: Settings, end: false }
 ]
 
 export default function Sidebar() {

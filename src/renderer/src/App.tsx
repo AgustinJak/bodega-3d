@@ -5,6 +5,7 @@ import Modelos from './pages/Modelos'
 import ModeloDetalle from './pages/ModeloDetalle'
 import ModeloForm from './pages/ModeloForm'
 import Calculadora from './pages/Calculadora'
+import Configuracion from './pages/Configuracion'
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <Route path="/modelos/:id" element={<ModeloDetalle />} />
         <Route path="/modelos/:id/editar" element={<ModeloForm />} />
         <Route path="/calculadora" element={<Calculadora />} />
+        <Route path="/configuracion" element={<Configuracion />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

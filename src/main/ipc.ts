@@ -1,6 +1,6 @@
 import { ipcMain, dialog, BrowserWindow, shell } from 'electron'
 import { randomUUID } from 'crypto'
-import { rmSync, existsSync } from 'fs'
+import { rmSync, existsSync, copyFileSync, mkdirSync } from 'fs'
 import { spawn } from 'child_process'
 import { join } from 'path'
 import { getDb, getStorageDir } from './db'
@@ -197,6 +197,39 @@ export function registerIpc(): void {
          FROM tags t ORDER BY t.name`
       )
       .all()
+  })
+
+  ipcMain.handle('tags:rename', (_e, id: string, name: string) => {
+    getDb().prepare('UPDATE tags SET name = ? WHERE id = ?').run(name.trim(), id)
+    return true
+  })
+  ipcMain.handle('tags:delete', (_e, id: string) => {
+    const db = getDb()
+    db.prepare('DELETE FROM model_tags WHERE tagId = ?').run(id)
+    db.prepare('DELETE FROM tags WHERE id = ?').run(id)
+    return true
+  })
+
+  // ---------- App data / paths / backup ----------
+  ipcMain.handle('app:getPaths', () => {
+    const s = getStorageDir()
+    return { storageDir: s, dbPath: join(s, 'bodega3d.db'), backupsDir: join(s, 'backups'), modelsDir: join(s, 'models') }
+  })
+  ipcMain.handle('app:openPath', (_e, p: string) => shell.openPath(p))
+  ipcMain.handle('app:backupNow', () => {
+    const s = getStorageDir()
+    const dbPath = join(s, 'bodega3d.db')
+    const backupsDir = join(s, 'backups')
+    mkdirSync(backupsDir, { recursive: true })
+    try {
+      getDb().pragma('wal_checkpoint(TRUNCATE)')
+    } catch {
+      /* ignore */
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const dest = join(backupsDir, `bodega3d-manual-${stamp}.db`)
+    copyFileSync(dbPath, dest)
+    return dest
   })
 
   // ---------- Images ----------
