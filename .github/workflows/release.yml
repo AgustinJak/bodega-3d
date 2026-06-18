@@ -1,0 +1,38 @@
+name: Build & Release
+
+# Se dispara al subir un tag de versión (ej: v2.1.1).
+# Flujo para publicar una versión nueva:
+#   1) subir la versión en package.json
+#   2) git commit -am "vX.Y.Z"
+#   3) git tag vX.Y.Z && git push --tags
+# El Action compila el instalador y lo publica solo en Releases.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Build & publish installer
+        # En CI compilamos los módulos nativos (el runner tiene compilador),
+        # por eso forzamos npmRebuild=true (localmente se reusa un .node ya compilado).
+        run: npx electron-builder --win --publish always -c.npmRebuild=true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

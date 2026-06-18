@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Boxes, Calculator, Layers } from 'lucide-react'
+import { api } from '../lib/api'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -8,6 +10,10 @@ const NAV = [
 ]
 
 export default function Sidebar() {
+  const [version, setVersion] = useState('')
+  useEffect(() => {
+    api.getAppVersion().then(setVersion).catch(() => {})
+  }, [])
   return (
     <aside className="w-60 shrink-0 bg-navy border-r border-lavanda/10 flex flex-col">
       <div className="p-5 border-b border-lavanda/10">
@@ -39,7 +45,7 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-lavanda/10">
-        <p className="text-[10px] text-lavanda/30">v2.0 · datos locales</p>
+        <p className="text-[10px] text-lavanda/30">{version ? `v${version}` : ''} · datos locales</p>
       </div>
     </aside>
   )

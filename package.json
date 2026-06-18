@@ -1,6 +1,6 @@
 {
   "name": "bodega-3d",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Gestión de modelos 3D — Sendero 3D",
   "author": "Sendero 3D",
   "license": "UNLICENSED",
@@ -16,6 +16,7 @@
     "appId": "com.sendero3d.bodega3d",
     "productName": "Bodega 3D",
     "directories": { "output": "dist", "buildResources": "build" },
+    "publish": [{ "provider": "github", "owner": "AgustinJak", "repo": "bodega-3d" }],
     "npmRebuild": false,
     "asarUnpack": ["**/*.node"],
     "win": {
@@ -34,7 +35,8 @@
   },
   "dependencies": {
     "adm-zip": "^0.5.16",
-    "better-sqlite3": "12.8.0"
+    "better-sqlite3": "12.8.0",
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",

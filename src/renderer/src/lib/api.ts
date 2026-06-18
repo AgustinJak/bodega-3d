@@ -40,6 +40,18 @@ interface BodegaApi {
   getSlicerPath: () => Promise<{ path: string | null; exists: boolean }>
   setSlicerPath: () => Promise<string | null>
   showInFolder: (filePath: string) => Promise<boolean>
+  onUpdateStatus: (cb: (data: UpdateStatus) => void) => () => void
+  checkUpdates: () => Promise<{ packaged: boolean }>
+  installUpdate: () => Promise<void>
+  openReleases: () => Promise<void>
+  getAppVersion: () => Promise<string>
+}
+
+export interface UpdateStatus {
+  state: 'checking' | 'available' | 'none' | 'downloading' | 'downloaded' | 'error'
+  version?: string
+  percent?: number
+  error?: string
 }
 
 declare global {

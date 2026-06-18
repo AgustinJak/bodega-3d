@@ -40,7 +40,18 @@ const api = {
   openInSlicer: (filePath: string) => ipcRenderer.invoke('slicer:open', filePath),
   getSlicerPath: () => ipcRenderer.invoke('slicer:getPath'),
   setSlicerPath: () => ipcRenderer.invoke('slicer:setPath'),
-  showInFolder: (filePath: string) => ipcRenderer.invoke('shell:showItemInFolder', filePath)
+  showInFolder: (filePath: string) => ipcRenderer.invoke('shell:showItemInFolder', filePath),
+
+  // Updates
+  onUpdateStatus: (cb: (data: any) => void) => {
+    const listener = (_e: unknown, data: any) => cb(data)
+    ipcRenderer.on('update:status', listener)
+    return () => ipcRenderer.removeListener('update:status', listener)
+  },
+  checkUpdates: () => ipcRenderer.invoke('updater:check'),
+  installUpdate: () => ipcRenderer.invoke('updater:install'),
+  openReleases: () => ipcRenderer.invoke('updater:openReleases'),
+  getAppVersion: () => ipcRenderer.invoke('updater:currentVersion')
 }
 
 contextBridge.exposeInMainWorld('api', api)
