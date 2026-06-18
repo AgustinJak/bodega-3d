@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Upload, FileBox, Save } from 'lucide-react'
 import { api } from '../lib/api'
+import { mediaUrl } from '../lib/media'
 import type { Category } from '../types'
 
 interface ImportedFile {
@@ -10,6 +11,7 @@ interface ImportedFile {
   fileName: string
   fileSize: number
   fileType: string
+  thumbnailPath?: string | null
 }
 
 export default function ModeloForm() {
@@ -101,7 +103,8 @@ export default function ModeloForm() {
           description,
           notes,
           printTimeSeconds,
-          filamentGrams
+          filamentGrams,
+          thumbnailPath: imported.thumbnailPath ?? null
         })
         nav(`/modelos/${imported.id}`)
       }
@@ -121,10 +124,21 @@ export default function ModeloForm() {
         <div className="rounded-xl bg-navy border border-lavanda/10 p-5">
           {imported ? (
             <div className="flex items-center gap-3">
-              <FileBox className="w-8 h-8 text-ambar" />
+              {imported.thumbnailPath ? (
+                <img
+                  src={mediaUrl(imported.thumbnailPath)}
+                  alt=""
+                  className="w-12 h-12 rounded-lg object-cover border border-lavanda/15"
+                />
+              ) : (
+                <FileBox className="w-8 h-8 text-ambar" />
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-niebla truncate">{imported.fileName}</p>
-                <p className="text-xs text-lavanda/50">{(imported.fileSize / 1024 / 1024).toFixed(2)} MB · {imported.fileType.toUpperCase()}</p>
+                <p className="text-xs text-lavanda/50">
+                  {(imported.fileSize / 1024 / 1024).toFixed(2)} MB · {imported.fileType.toUpperCase()}
+                  {imported.thumbnailPath ? ' · preview detectada' : ''}
+                </p>
               </div>
               <button onClick={pickFile} className="text-xs text-ambar hover:text-ambar-light">
                 Cambiar

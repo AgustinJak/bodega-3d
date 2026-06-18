@@ -10,6 +10,7 @@ interface BodegaApi {
     fileSize: number
     fileType: string
     printInfo: { printTimeSeconds: number | null; filamentGrams: number | null }
+    thumbnailPath: string | null
     suggestedName: string
   }>
   createModel: (input: Record<string, unknown>) => Promise<string>
