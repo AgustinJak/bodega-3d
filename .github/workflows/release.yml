@@ -27,12 +27,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Rebuild native modules for Electron
+        # El runner tiene compilador (VS); recompilamos better-sqlite3 para el ABI
+        # de Electron. (Localmente se reusa un .node ya compilado, por eso npmRebuild=false.)
+        run: npx --yes @electron/rebuild --force --only better-sqlite3
+
       - name: Build app
         run: npm run build
 
       - name: Build & publish installer
-        # En CI compilamos los módulos nativos (el runner tiene compilador),
-        # por eso forzamos npmRebuild=true (localmente se reusa un .node ya compilado).
-        run: npx electron-builder --win --publish always -c.npmRebuild=true
+        run: npx electron-builder --win --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
