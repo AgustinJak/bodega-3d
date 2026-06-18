@@ -36,7 +36,8 @@
   "dependencies": {
     "adm-zip": "^0.5.16",
     "better-sqlite3": "12.8.0",
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "mqtt": "^5.10.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",

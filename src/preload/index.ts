@@ -60,7 +60,19 @@ const api = {
   downloadUpdate: () => ipcRenderer.invoke('updater:download'),
   installUpdate: () => ipcRenderer.invoke('updater:install'),
   openReleases: () => ipcRenderer.invoke('updater:openReleases'),
-  getAppVersion: () => ipcRenderer.invoke('updater:currentVersion')
+  getAppVersion: () => ipcRenderer.invoke('updater:currentVersion'),
+
+  // Impresoras Bambu (nube, solo lectura)
+  bambuStatus: () => ipcRenderer.invoke('bambu:status'),
+  bambuLogin: (account: string, password: string) => ipcRenderer.invoke('bambu:login', account, password),
+  bambuLoginCode: (account: string, code: string) => ipcRenderer.invoke('bambu:loginCode', account, code),
+  bambuLogout: () => ipcRenderer.invoke('bambu:logout'),
+  bambuRefresh: () => ipcRenderer.invoke('bambu:refresh'),
+  onBambuUpdate: (cb: (printers: any[]) => void) => {
+    const listener = (_e: unknown, data: any[]) => cb(data)
+    ipcRenderer.on('bambu:update', listener)
+    return () => ipcRenderer.removeListener('bambu:update', listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('api', api)

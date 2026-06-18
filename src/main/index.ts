@@ -3,6 +3,7 @@ import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { registerIpc } from './ipc'
 import { setupUpdater } from './updater'
+import { setupBambu } from './bambu'
 
 // IMPORTANT: use the same app name as the original app so userData resolves to
 // %APPDATA%\bodega-3d and we read/write the EXISTING data (DB + models).
@@ -53,6 +54,7 @@ app.whenReady().then(() => {
   registerIpc()
   createWindow()
   setupUpdater(() => mainWindow)
+  setupBambu(() => mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

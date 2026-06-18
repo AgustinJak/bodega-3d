@@ -53,6 +53,30 @@ interface BodegaApi {
   installUpdate: () => Promise<void>
   openReleases: () => Promise<void>
   getAppVersion: () => Promise<string>
+  bambuStatus: () => Promise<{ loggedIn: boolean; account: string | null; printers: PrinterState[] }>
+  bambuLogin: (account: string, password: string) => Promise<{ ok: boolean; needCode?: boolean; error?: string }>
+  bambuLoginCode: (account: string, code: string) => Promise<{ ok: boolean; error?: string }>
+  bambuLogout: () => Promise<boolean>
+  bambuRefresh: () => Promise<PrinterState[]>
+  onBambuUpdate: (cb: (printers: PrinterState[]) => void) => () => void
+}
+
+export interface PrinterState {
+  serial: string
+  name: string
+  model: string
+  online: boolean
+  state: string
+  percent: number | null
+  remainingMin: number | null
+  taskName: string | null
+  nozzleTemp: number | null
+  bedTemp: number | null
+  layer: number | null
+  totalLayers: number | null
+  errorCode: number | null
+  hmsCount: number
+  updatedAt: number
 }
 
 export interface UpdateStatus {
