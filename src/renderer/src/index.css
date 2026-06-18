@@ -1,0 +1,63 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Paleta Sendero — Hollow Knight (igual que el shop) */
+  --color-navy: #1c2541;
+  --color-navy-deep: #0f1729;
+  --color-lavanda: #8b85b2;
+  --color-lavanda-light: #b8b3d1;
+  --color-niebla: #e8e6f0;
+  --color-purpura: #6c63a0;
+  --color-ambar: #d4a853;
+  --color-ambar-light: #e8c97a;
+
+  --font-display: 'Cinzel', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: local('Inter');
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-navy-deep);
+  color: var(--color-niebla);
+  font-family: var(--font-body);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-navy-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-lavanda);
+  border-radius: 5px;
+  opacity: 0.5;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-purpura);
+}
+::selection {
+  background-color: var(--color-purpura);
+  color: var(--color-niebla);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
