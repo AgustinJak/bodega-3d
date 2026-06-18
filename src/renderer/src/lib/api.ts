@@ -76,6 +76,7 @@ export interface PrinterState {
   totalLayers: number | null
   errorCode: number | null
   hmsCount: number
+  errorText: string | null
   updatedAt: number
 }
 

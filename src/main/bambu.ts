@@ -35,6 +35,7 @@ export interface PrinterState {
   totalLayers: number | null
   errorCode: number | null
   hmsCount: number
+  errorText: string | null
   updatedAt: number
 }
 
@@ -42,6 +43,42 @@ let client: MqttClient | null = null
 let devices: DeviceInfo[] = []
 const raw = new Map<string, any>() // estado crudo acumulado por serial (A1 manda parciales)
 let getWin: (() => BrowserWindow | null) | null = null
+
+// Base de descripciones de errores de Bambu (código → texto en español)
+const hmsDb = { error: {} as Record<string, string>, hms: {} as Record<string, string> }
+
+function toHex8(n: number): string {
+  return (n >>> 0).toString(16).padStart(8, '0').toUpperCase()
+}
+
+async function loadHmsDb(): Promise<void> {
+  try {
+    const res = await fetch('https://e.bambulab.com/query.php?lang=es')
+    const data = (await res.json())?.data
+    const deList = data?.device_error?.es ?? data?.device_error?.en ?? []
+    const dhList = data?.device_hms?.es ?? data?.device_hms?.en ?? []
+    for (const e of deList) if (e.ecode) hmsDb.error[String(e.ecode).toUpperCase()] = e.intro
+    for (const e of dhList) if (e.ecode) hmsDb.hms[String(e.ecode).toUpperCase()] = e.intro
+    console.log('[bambu] HMS DB cargada:', Object.keys(hmsDb.error).length, 'errores,', Object.keys(hmsDb.hms).length, 'hms')
+  } catch (e: any) {
+    console.log('[bambu] no se pudo cargar HMS DB:', e?.message)
+  }
+}
+
+function errorInfo(p: any): { code: string; text: string } | null {
+  if (p?.print_error && p.print_error !== 0) {
+    const code = toHex8(p.print_error)
+    let text = hmsDb.error[code]
+    if (!text && (p.print_error & 0xffff) === 0x8011) text = 'Sin filamento (AMS)'
+    return { code, text: text || `Error ${code}` }
+  }
+  if (Array.isArray(p?.hms) && p.hms.length) {
+    const e = p.hms[0]
+    const code = toHex8(e.attr) + toHex8(e.code)
+    return { code, text: hmsDb.hms[code] || `Aviso del sistema (${code})` }
+  }
+  return null
+}
 
 function setting(key: string): string | null {
   const r = getDb().prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined
@@ -136,6 +173,7 @@ function computeState(d: DeviceInfo): PrinterState {
     totalLayers: typeof p.total_layer_num === 'number' ? p.total_layer_num : null,
     errorCode: typeof p.print_error === 'number' && p.print_error !== 0 ? p.print_error : null,
     hmsCount: Array.isArray(p.hms) ? p.hms.length : 0,
+    errorText: d.online ? errorInfo(p)?.text ?? null : null,
     updatedAt: Date.now()
   }
 }
@@ -231,6 +269,7 @@ async function startSession(token: string, refresh?: string): Promise<{ ok: bool
 
 export function setupBambu(getWindow: () => BrowserWindow | null): void {
   getWin = getWindow
+  loadHmsDb().then(() => broadcast())
 
   ipcMain.handle('bambu:status', () => ({
     loggedIn: !!setting('bambu_token'),

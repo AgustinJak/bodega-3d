@@ -1,12 +1,20 @@
-import { useEffect, useState } from 'react'
-import { Printer, LogOut, RefreshCw, Thermometer, Clock, AlertTriangle, Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  Printer, LogOut, RefreshCw, Thermometer, Clock, AlertTriangle, Loader2, GripVertical, EyeOff, Eye
+} from 'lucide-react'
 import { api } from '../lib/api'
 import type { PrinterState } from '../lib/api'
+
+const ORDER_KEY = 'bambu_card_order'
+const HIDDEN_KEY = 'bambu_hidden'
 
 export default function Impresoras() {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null)
   const [account, setAccount] = useState<string | null>(null)
   const [printers, setPrinters] = useState<PrinterState[]>([])
+  const [order, setOrder] = useState<string[]>([])
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
+  const [drag, setDrag] = useState<string | null>(null)
 
   useEffect(() => {
     api.bambuStatus().then((s) => {
@@ -14,9 +22,58 @@ export default function Impresoras() {
       setAccount(s.account)
       setPrinters(s.printers)
     })
+    api.getSettings().then((m) => {
+      try {
+        if (m[ORDER_KEY]) setOrder(JSON.parse(m[ORDER_KEY]))
+      } catch {
+        /* noop */
+      }
+      try {
+        if (m[HIDDEN_KEY]) setHidden(new Set(JSON.parse(m[HIDDEN_KEY])))
+      } catch {
+        /* noop */
+      }
+    })
     const off = api.onBambuUpdate((list) => setPrinters(list))
     return off
   }, [])
+
+  const bySerial = useMemo(() => Object.fromEntries(printers.map((p) => [p.serial, p])), [printers])
+  const orderedSerials = useMemo(() => {
+    const known = order.filter((s) => bySerial[s])
+    const extra = printers.map((p) => p.serial).filter((s) => !order.includes(s))
+    return [...known, ...extra]
+  }, [order, printers, bySerial])
+
+  const visible = orderedSerials.filter((s) => !hidden.has(s))
+  const hiddenList = orderedSerials.filter((s) => hidden.has(s))
+
+  function persistOrder(arr: string[]) {
+    setOrder(arr)
+    api.setSetting(ORDER_KEY, JSON.stringify(arr))
+  }
+  function persistHidden(set: Set<string>) {
+    setHidden(new Set(set))
+    api.setSetting(HIDDEN_KEY, JSON.stringify([...set]))
+  }
+  function onDrop(target: string) {
+    if (!drag || drag === target) return
+    const arr = orderedSerials.filter((s) => s !== drag)
+    const idx = arr.indexOf(target)
+    arr.splice(idx < 0 ? arr.length : idx, 0, drag)
+    persistOrder(arr)
+    setDrag(null)
+  }
+  function hide(serial: string) {
+    const s = new Set(hidden)
+    s.add(serial)
+    persistHidden(s)
+  }
+  function unhide(serial: string) {
+    const s = new Set(hidden)
+    s.delete(serial)
+    persistHidden(s)
+  }
 
   if (loggedIn === null) return <p className="text-sm text-lavanda/50">Cargando…</p>
 
@@ -53,11 +110,13 @@ export default function Impresoras() {
 
       {!loggedIn ? (
         <LoginForm
-          onLoggedIn={() => api.bambuStatus().then((s) => {
-            setLoggedIn(s.loggedIn)
-            setAccount(s.account)
-            setPrinters(s.printers)
-          })}
+          onLoggedIn={() =>
+            api.bambuStatus().then((s) => {
+              setLoggedIn(s.loggedIn)
+              setAccount(s.account)
+              setPrinters(s.printers)
+            })
+          }
         />
       ) : printers.length === 0 ? (
         <div className="rounded-xl bg-navy border border-lavanda/10 p-8 text-center">
@@ -65,17 +124,55 @@ export default function Impresoras() {
           <p className="text-sm text-lavanda/60">Buscando impresoras y esperando datos…</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {printers.map((p) => (
-            <PrinterCard key={p.serial} p={p} />
-          ))}
-        </div>
-      )}
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {visible.map((serial) => {
+              const p = bySerial[serial]
+              if (!p) return null
+              return (
+                <div
+                  key={serial}
+                  draggable
+                  onDragStart={() => setDrag(serial)}
+                  onDragEnter={(e) => e.preventDefault()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => onDrop(serial)}
+                  onDragEnd={() => setDrag(null)}
+                  className={drag === serial ? 'opacity-40' : ''}
+                >
+                  <PrinterCard p={p} onHide={() => hide(serial)} />
+                </div>
+              )
+            })}
+          </div>
 
-      {loggedIn && (
-        <p className="text-[11px] text-lavanda/30">
-          Modo nube = solo lectura. Para enviar impresiones seguí usando Bambu Studio / Handy.
-        </p>
+          {hiddenList.length > 0 && (
+            <div className="rounded-xl bg-navy/50 border border-lavanda/10 p-3">
+              <p className="text-xs text-lavanda/50 mb-2 flex items-center gap-1.5">
+                <EyeOff className="w-3.5 h-3.5" /> Ocultas ({hiddenList.length})
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {hiddenList.map((serial) => {
+                  const p = bySerial[serial]
+                  return (
+                    <button
+                      key={serial}
+                      onClick={() => unhide(serial)}
+                      className="flex items-center gap-1.5 text-xs text-lavanda-light bg-lavanda/5 hover:bg-lavanda/10 rounded-lg px-2.5 py-1.5"
+                      title="Mostrar de nuevo"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> {p?.name || serial}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <p className="text-[11px] text-lavanda/30">
+            Arrastrá las tarjetas para ordenarlas. Modo nube = solo lectura; para enviar impresiones usá Bambu Studio / Handy.
+          </p>
+        </>
       )}
     </div>
   )
@@ -91,23 +188,33 @@ const STATE_META: Record<string, { label: string; color: string; dot: string }> 
   OFFLINE: { label: 'Apagada / sin conexión', color: 'text-lavanda/40', dot: 'bg-lavanda/30' }
 }
 
-function PrinterCard({ p }: { p: PrinterState }) {
+function PrinterCard({ p, onHide }: { p: PrinterState; onHide: () => void }) {
   const meta = STATE_META[p.state] || STATE_META.IDLE
   const moving = p.state === 'RUNNING' || p.state === 'PREPARE'
   const printing = moving || p.state === 'PAUSE'
+  const hasError = !!p.errorText
   return (
-    <div className="rounded-xl bg-navy border border-lavanda/10 p-4 space-y-3">
+    <div className={`group rounded-xl bg-navy border p-4 space-y-3 cursor-grab active:cursor-grabbing ${hasError ? 'border-red-500/50' : 'border-lavanda/10'}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
-          <Printer className="w-4 h-4 text-lavanda/50 shrink-0" />
+          <GripVertical className="w-4 h-4 text-lavanda/25 shrink-0" />
           <span className="text-sm font-medium text-niebla truncate" title={p.name}>{p.name}</span>
         </div>
-        <span className={`flex items-center gap-1.5 text-xs ${meta.color}`}>
-          <span className={`w-2 h-2 rounded-full ${meta.dot} ${moving ? 'animate-pulse' : ''}`} /> {meta.label}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`flex items-center gap-1.5 text-xs ${meta.color}`}>
+            <span className={`w-2 h-2 rounded-full ${meta.dot} ${moving ? 'animate-pulse' : ''}`} /> {meta.label}
+          </span>
+          <button
+            onClick={onHide}
+            className="text-lavanda/30 hover:text-lavanda opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Ocultar"
+          >
+            <EyeOff className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
-      <p className="text-[11px] text-lavanda/40">{p.model || 'Bambu Lab'}</p>
+      <p className="text-[11px] text-lavanda/40 pl-6">{p.model || 'Bambu Lab'}</p>
 
       {printing && (
         <div>
@@ -140,10 +247,10 @@ function PrinterCard({ p }: { p: PrinterState }) {
         )}
       </div>
 
-      {(p.errorCode || p.hmsCount > 0) && (
-        <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/10 rounded-lg px-2.5 py-1.5">
-          <AlertTriangle className="w-3.5 h-3.5" />
-          {p.errorCode ? `Error ${p.errorCode}` : `${p.hmsCount} aviso(s) del sistema`}
+      {hasError && (
+        <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 rounded-lg px-2.5 py-1.5">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>{p.errorText}</span>
         </div>
       )}
     </div>
