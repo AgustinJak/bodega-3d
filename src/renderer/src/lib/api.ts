@@ -49,6 +49,8 @@ interface BodegaApi {
   getSettings: () => Promise<Record<string, string>>
   setSetting: (key: string, value: string) => Promise<boolean>
   getStats: () => Promise<Stats>
+  exportModels: (ids?: string[]) => Promise<{ ok: boolean; canceled?: boolean; count?: number; path?: string }>
+  importBundle: () => Promise<{ ok: boolean; canceled?: boolean; error?: string; imported?: number; skipped?: number }>
   getPrintInfoFromPath: (p: string) => Promise<{ printTimeSeconds: number | null; filamentGrams: number | null }>
   pickModelFiles: () => Promise<string[]>
   pickImages: () => Promise<string[]>

@@ -52,6 +52,10 @@ const api = {
   setSetting: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value),
   getStats: () => ipcRenderer.invoke('stats:get'),
 
+  // Migración (exportar/importar modelos)
+  exportModels: (ids?: string[]) => ipcRenderer.invoke('migration:export', ids),
+  importBundle: () => ipcRenderer.invoke('migration:import'),
+
   // Files / dialogs
   getPrintInfoFromPath: (p: string) => ipcRenderer.invoke('printInfo:fromPath', p),
   pickModelFiles: () => ipcRenderer.invoke('dialog:pickModelFiles'),

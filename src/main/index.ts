@@ -5,6 +5,7 @@ import { registerIpc } from './ipc'
 import { setupUpdater } from './updater'
 import { setupBambu } from './bambu'
 import { setupBambuCam } from './bambu-cam'
+import { registerMigrationIpc } from './migration'
 import { getDb } from './db'
 
 // Mismo nombre de app que la versión original → usa %APPDATA%\bodega-3d (datos existentes)
@@ -183,6 +184,7 @@ if (!gotLock) {
 
     registerIpc()
     registerAppConfigIpc()
+    registerMigrationIpc()
     createWindow()
     createTray()
     setupUpdater(() => mainWindow)
