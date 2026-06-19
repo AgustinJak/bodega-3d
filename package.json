@@ -1,6 +1,6 @@
 {
   "name": "bodega-3d",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "description": "Gestión de modelos 3D — Sendero 3D",
   "author": "Sendero 3D",
   "license": "UNLICENSED",
@@ -31,7 +31,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Bodega 3D"
+      "shortcutName": "Bodega 3D",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/uninstallerSidebar.bmp",
+      "installerHeader": "build/installerHeader.bmp"
     }
   },
   "dependencies": {

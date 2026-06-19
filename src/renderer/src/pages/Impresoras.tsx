@@ -194,7 +194,7 @@ function PrinterCard({ p, onHide }: { p: PrinterState; onHide: () => void }) {
   const printing = moving || p.state === 'PAUSE'
   const hasError = !!p.errorText
   return (
-    <div className={`group rounded-xl bg-navy border p-4 space-y-3 cursor-grab active:cursor-grabbing ${hasError ? 'border-red-500/50' : 'border-lavanda/10'}`}>
+    <div className={`lift group rounded-xl bg-navy border p-4 space-y-3 cursor-grab active:cursor-grabbing ${hasError ? 'border-red-500/50' : 'border-lavanda/10'}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <GripVertical className="w-4 h-4 text-lavanda/25 shrink-0" />

@@ -10,7 +10,7 @@ export default function ModelCard({ model }: { model: ModelListItem }) {
   return (
     <Link
       to={`/modelos/${model.id}`}
-      className="group rounded-xl bg-navy border border-lavanda/10 overflow-hidden hover:border-ambar/40 transition-colors"
+      className="lift group rounded-xl bg-navy border border-lavanda/10 overflow-hidden hover:border-ambar/40"
     >
       <div className="aspect-square bg-navy-deep relative flex items-center justify-center overflow-hidden">
         {thumb ? (

@@ -6,6 +6,7 @@ import type { UpdateStatus } from '../lib/api'
 export default function UpdateBanner() {
   const [status, setStatus] = useState<UpdateStatus | null>(null)
   const [dismissed, setDismissed] = useState(false)
+  const [installing, setInstalling] = useState(false)
 
   useEffect(() => {
     const off = api.onUpdateStatus((data) => {
@@ -86,10 +87,15 @@ export default function UpdateBanner() {
             </p>
             <div className="flex gap-2 mt-3">
               <button
-                onClick={() => api.installUpdate()}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-ambar text-navy-deep font-medium text-sm hover:bg-ambar-light"
+                onClick={() => {
+                  setInstalling(true)
+                  api.installUpdate()
+                }}
+                disabled={installing}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-ambar text-navy-deep font-medium text-sm hover:bg-ambar-light disabled:opacity-80"
               >
-                <RefreshCw className="w-4 h-4" /> Reiniciar e instalar
+                <RefreshCw className={`w-4 h-4 ${installing ? 'animate-spin' : ''}`} />
+                {installing ? 'Reiniciando…' : 'Reiniciar e instalar'}
               </button>
               <button
                 onClick={() => setDismissed(true)}
