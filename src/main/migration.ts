@@ -1,9 +1,21 @@
 import { ipcMain, dialog, BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { randomUUID } from 'crypto'
 import { join, basename } from 'path'
-import { mkdirSync, writeFileSync, existsSync } from 'fs'
+import { mkdirSync, writeFileSync, existsSync, readFileSync, readdirSync, copyFileSync, rmSync } from 'fs'
+import { tmpdir } from 'os'
+import { execFileSync } from 'child_process'
 import AdmZip from 'adm-zip'
 import { getDb, getStorageDir } from './db'
+
+/** Extrae un .zip a un directorio usando el tar del sistema (bajo consumo de memoria); cae a adm-zip si falla. */
+function extractZip(zipPath: string, destDir: string): void {
+  mkdirSync(destDir, { recursive: true })
+  try {
+    execFileSync('tar', ['-xf', zipPath, '-C', destDir], { stdio: 'ignore' })
+  } catch {
+    new AdmZip(zipPath).extractAllTo(destDir, true)
+  }
+}
 
 function now(): string {
   return new Date().toISOString()
@@ -107,13 +119,23 @@ export function registerMigrationIpc(): void {
     if (res.canceled || !res.filePaths[0]) return { ok: false, canceled: true }
 
     const storage = getStorageDir()
-    const zip = new AdmZip(res.filePaths[0])
-    const manifestEntry = zip.getEntry('manifest.json')
-    if (!manifestEntry) return { ok: false, error: 'El archivo no es un bundle válido de Bodega 3D.' }
+    const tempDir = join(tmpdir(), 'bodega-import-' + randomUUID())
+    try {
+      extractZip(res.filePaths[0], tempDir)
+    } catch (err: any) {
+      return { ok: false, error: 'No se pudo abrir el bundle: ' + (err?.message || err) }
+    }
+
+    const manifestPath = join(tempDir, 'manifest.json')
+    if (!existsSync(manifestPath)) {
+      rmSync(tempDir, { recursive: true, force: true })
+      return { ok: false, error: 'El archivo no es un bundle válido de Bodega 3D.' }
+    }
     let manifest: any
     try {
-      manifest = JSON.parse(manifestEntry.getData().toString('utf8'))
+      manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
     } catch {
+      rmSync(tempDir, { recursive: true, force: true })
       return { ok: false, error: 'No se pudo leer el bundle.' }
     }
 
@@ -138,12 +160,12 @@ export function registerMigrationIpc(): void {
       }
     }
 
-    const entries = zip.getEntries()
     const list = manifest.models || []
     const total = list.length
     let imported = 0
     let skipped = 0
 
+    try {
     for (let i = 0; i < list.length; i++) {
       const m = list[i]
       sendProgress(e, 'import', i + 1, total, m.name)
@@ -159,11 +181,11 @@ export function registerMigrationIpc(): void {
       const destDir = join(storage, 'models', newId)
       mkdirSync(destDir, { recursive: true })
 
-      const prefix = `models/${m.folder}/`
-      for (const en of entries) {
-        if (!en.isDirectory && en.entryName.replace(/\\/g, '/').startsWith(prefix)) {
-          const rel = en.entryName.replace(/\\/g, '/').substring(prefix.length)
-          if (rel) writeFileSync(join(destDir, rel), en.getData())
+      // Copiar los archivos del modelo desde el temp (a disco, sin cargar todo en memoria)
+      const srcDir = join(tempDir, 'models', m.folder)
+      if (existsSync(srcDir)) {
+        for (const f of readdirSync(srcDir, { withFileTypes: true })) {
+          if (f.isFile()) copyFileSync(join(srcDir, f.name), join(destDir, f.name))
         }
       }
 
@@ -204,6 +226,9 @@ export function registerMigrationIpc(): void {
       }
       setTags(newId, m.tags || [])
       imported++
+    }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true })
     }
 
     return { ok: true, imported, skipped }
