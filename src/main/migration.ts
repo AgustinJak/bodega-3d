@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { randomUUID } from 'crypto'
 import { join, basename } from 'path'
 import { mkdirSync, writeFileSync, existsSync } from 'fs'
@@ -8,10 +8,19 @@ import { getDb, getStorageDir } from './db'
 function now(): string {
   return new Date().toISOString()
 }
+const tick = () => new Promise<void>((r) => setImmediate(r))
+
+function sendProgress(e: IpcMainInvokeEvent, phase: 'export' | 'import', current: number, total: number, name: string) {
+  try {
+    e.sender.send('migration:progress', { phase, current, total, name })
+  } catch {
+    /* noop */
+  }
+}
 
 export function registerMigrationIpc(): void {
   // ---------- Exportar ----------
-  ipcMain.handle('migration:export', async (_e, ids?: string[]) => {
+  ipcMain.handle('migration:export', async (e, ids?: string[]) => {
     const db = getDb()
     const win = BrowserWindow.getFocusedWindow()
     const stamp = new Date().toISOString().slice(0, 10)
@@ -43,8 +52,12 @@ export function registerMigrationIpc(): void {
     const storage = getStorageDir()
     const zip = new AdmZip()
     const models: any[] = []
+    const total = rows.length
 
-    for (const m of rows) {
+    for (let i = 0; i < rows.length; i++) {
+      const m = rows[i]
+      sendProgress(e, 'export', i + 1, total, m.name)
+      await tick()
       const tags = db
         .prepare('SELECT t.name FROM model_tags mt JOIN tags t ON t.id = mt.tagId WHERE mt.modelId = ?')
         .all(m.id)
@@ -76,12 +89,14 @@ export function registerMigrationIpc(): void {
 
     const manifest = { app: 'bodega-3d', version: 1, exportedAt: now(), models }
     zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'))
+    sendProgress(e, 'export', total, total, 'Comprimiendo y guardando…')
+    await tick()
     zip.writeZip(res.filePath)
     return { ok: true, count: models.length, path: res.filePath }
   })
 
   // ---------- Importar ----------
-  ipcMain.handle('migration:import', async () => {
+  ipcMain.handle('migration:import', async (e) => {
     const db = getDb()
     const win = BrowserWindow.getFocusedWindow()
     const res = await dialog.showOpenDialog(win!, {
@@ -124,11 +139,16 @@ export function registerMigrationIpc(): void {
     }
 
     const entries = zip.getEntries()
+    const list = manifest.models || []
+    const total = list.length
     let imported = 0
     let skipped = 0
 
-    for (const m of manifest.models || []) {
-      // Evitar duplicados obvios (mismo nombre + archivo)
+    for (let i = 0; i < list.length; i++) {
+      const m = list[i]
+      sendProgress(e, 'import', i + 1, total, m.name)
+      await tick()
+
       const dup = db.prepare('SELECT 1 FROM models WHERE name = ? AND fileName = ?').get(m.name, m.fileName)
       if (dup) {
         skipped++
@@ -140,10 +160,10 @@ export function registerMigrationIpc(): void {
       mkdirSync(destDir, { recursive: true })
 
       const prefix = `models/${m.folder}/`
-      for (const e of entries) {
-        if (!e.isDirectory && e.entryName.replace(/\\/g, '/').startsWith(prefix)) {
-          const rel = e.entryName.replace(/\\/g, '/').substring(prefix.length)
-          if (rel) writeFileSync(join(destDir, rel), e.getData())
+      for (const en of entries) {
+        if (!en.isDirectory && en.entryName.replace(/\\/g, '/').startsWith(prefix)) {
+          const rel = en.entryName.replace(/\\/g, '/').substring(prefix.length)
+          if (rel) writeFileSync(join(destDir, rel), en.getData())
         }
       }
 

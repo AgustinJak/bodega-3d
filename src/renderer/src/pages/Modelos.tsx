@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Plus, PackageOpen, Download, Upload, Loader2 } from 'lucide-react'
+import { Search, Plus, PackageOpen, Download, Upload, Loader2, CheckSquare } from 'lucide-react'
 import { api } from '../lib/api'
 import type { ModelListItem, Category } from '../types'
 import ModelCard from '../components/ModelCard'
@@ -12,6 +12,23 @@ export default function Modelos() {
   const [categoryId, setCategoryId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<'' | 'export' | 'import'>('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selectMode, setSelectMode] = useState(false)
+  const [progress, setProgress] = useState<{ phase: 'export' | 'import'; current: number; total: number; name: string } | null>(null)
+
+  useEffect(() => {
+    const off = api.onMigrationProgress((p) => setProgress(p))
+    return off
+  }, [])
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const load = useCallback(() => {
     setLoading(true)
@@ -30,14 +47,19 @@ export default function Modelos() {
     return () => clearTimeout(t)
   }, [load])
 
-  async function exportAll() {
+  async function exportModels() {
     setBusy('export')
     try {
-      const r = await api.exportModels()
-      if (r.ok) alert(`Se exportaron ${r.count} modelos a:\n${r.path}\n\nPasale ese archivo .zip a tu amigo para que lo importe.`)
-      else if (!r.canceled) alert('No se pudo exportar.')
+      const ids = selected.size ? [...selected] : undefined
+      const r = await api.exportModels(ids)
+      if (r.ok) {
+        alert(`Se exportaron ${r.count} modelos a:\n${r.path}\n\nPasale ese archivo .zip a tu amigo para que lo importe.`)
+        setSelected(new Set())
+        setSelectMode(false)
+      } else if (!r.canceled) alert('No se pudo exportar.')
     } finally {
       setBusy('')
+      setProgress(null)
     }
   }
   async function importBundle() {
@@ -52,6 +74,7 @@ export default function Modelos() {
       }
     } finally {
       setBusy('')
+      setProgress(null)
     }
   }
 
@@ -64,6 +87,19 @@ export default function Modelos() {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={() => {
+              setSelectMode((s) => !s)
+              setSelected(new Set())
+            }}
+            disabled={!!busy}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm disabled:opacity-50 ${
+              selectMode ? 'border-ambar/50 text-ambar bg-ambar/10' : 'border-lavanda/20 text-lavanda-light hover:bg-lavanda/5'
+            }`}
+            title="Elegir modelos para exportar"
+          >
+            <CheckSquare className="w-4 h-4" /> {selectMode ? `Seleccionados: ${selected.size}` : 'Seleccionar'}
+          </button>
+          <button
             onClick={importBundle}
             disabled={!!busy}
             className="flex items-center gap-2 px-3 py-2 rounded-lg border border-lavanda/20 text-sm text-lavanda-light hover:bg-lavanda/5 disabled:opacity-50"
@@ -72,12 +108,13 @@ export default function Modelos() {
             {busy === 'import' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Importar
           </button>
           <button
-            onClick={exportAll}
-            disabled={!!busy}
+            onClick={exportModels}
+            disabled={!!busy || (selectMode && selected.size === 0)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg border border-lavanda/20 text-sm text-lavanda-light hover:bg-lavanda/5 disabled:opacity-50"
-            title="Exportar todos tus modelos a un .zip para compartir"
+            title={selectMode ? 'Exportar los modelos seleccionados' : 'Exportar todos tus modelos a un .zip'}
           >
-            {busy === 'export' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Exportar
+            {busy === 'export' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {selectMode ? `Exportar (${selected.size})` : 'Exportar'}
           </button>
           <Link
             to="/modelos/nuevo"
@@ -123,8 +160,40 @@ export default function Modelos() {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {models.map((m) => (
-            <ModelCard key={m.id} model={m} />
+            <ModelCard
+              key={m.id}
+              model={m}
+              selectable={selectMode}
+              selected={selected.has(m.id)}
+              onToggleSelect={toggleSelect}
+            />
           ))}
+        </div>
+      )}
+
+      {progress && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fade_0.12s_ease-out]">
+          <div className="w-[380px] max-w-[90vw] rounded-2xl bg-navy border border-lavanda/15 shadow-2xl p-6">
+            <div className="flex items-center gap-2 mb-1">
+              {progress.phase === 'export' ? (
+                <Download className="w-5 h-5 text-ambar" />
+              ) : (
+                <Upload className="w-5 h-5 text-ambar" />
+              )}
+              <h2 className="font-display text-lg font-bold text-niebla">
+                {progress.phase === 'export' ? 'Exportando…' : 'Importando…'}
+              </h2>
+            </div>
+            <p className="text-xs text-lavanda/60 truncate" title={progress.name}>
+              {progress.current}/{progress.total} · {progress.name}
+            </p>
+            <div className="mt-3 h-2 rounded-full bg-lavanda/10 overflow-hidden">
+              <div
+                className="h-full bg-ambar transition-all duration-200"
+                style={{ width: `${progress.total ? Math.round((progress.current / progress.total) * 100) : 0}%` }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>

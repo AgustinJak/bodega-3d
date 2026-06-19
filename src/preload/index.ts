@@ -55,6 +55,11 @@ const api = {
   // Migración (exportar/importar modelos)
   exportModels: (ids?: string[]) => ipcRenderer.invoke('migration:export', ids),
   importBundle: () => ipcRenderer.invoke('migration:import'),
+  onMigrationProgress: (cb: (p: { phase: 'export' | 'import'; current: number; total: number; name: string }) => void) => {
+    const listener = (_e: unknown, p: any) => cb(p)
+    ipcRenderer.on('migration:progress', listener)
+    return () => ipcRenderer.removeListener('migration:progress', listener)
+  },
 
   // Files / dialogs
   getPrintInfoFromPath: (p: string) => ipcRenderer.invoke('printInfo:fromPath', p),

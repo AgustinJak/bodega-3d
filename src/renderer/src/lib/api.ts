@@ -51,6 +51,9 @@ interface BodegaApi {
   getStats: () => Promise<Stats>
   exportModels: (ids?: string[]) => Promise<{ ok: boolean; canceled?: boolean; count?: number; path?: string }>
   importBundle: () => Promise<{ ok: boolean; canceled?: boolean; error?: string; imported?: number; skipped?: number }>
+  onMigrationProgress: (
+    cb: (p: { phase: 'export' | 'import'; current: number; total: number; name: string }) => void
+  ) => () => void
   getPrintInfoFromPath: (p: string) => Promise<{ printTimeSeconds: number | null; filamentGrams: number | null }>
   pickModelFiles: () => Promise<string[]>
   pickImages: () => Promise<string[]>

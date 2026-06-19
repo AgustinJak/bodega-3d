@@ -1,18 +1,47 @@
 import { Link } from 'react-router-dom'
-import { Box, Printer, ImageOff } from 'lucide-react'
+import { Box, Printer, ImageOff, Check } from 'lucide-react'
 import type { ModelListItem } from '../types'
 import { mediaUrl } from '../lib/media'
 
-export default function ModelCard({ model }: { model: ModelListItem }) {
+export default function ModelCard({
+  model,
+  selectable,
+  selected,
+  onToggleSelect
+}: {
+  model: ModelListItem
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
+}) {
   const thumb = mediaUrl(model.thumbnailPath)
   const tags = (model.tagNames || '').split(',').filter(Boolean).slice(0, 3)
 
   return (
     <Link
       to={`/modelos/${model.id}`}
-      className="lift group rounded-xl bg-navy border border-lavanda/10 overflow-hidden hover:border-ambar/40"
+      className={`lift group rounded-xl bg-navy border overflow-hidden ${
+        selected ? 'border-ambar' : 'border-lavanda/10 hover:border-ambar/40'
+      }`}
     >
       <div className="aspect-square bg-navy-deep relative flex items-center justify-center overflow-hidden">
+        {selectable && (
+          <button
+            onClick={(ev) => {
+              ev.preventDefault()
+              ev.stopPropagation()
+              onToggleSelect?.(model.id)
+            }}
+            className={`absolute bottom-2 left-2 z-10 w-6 h-6 rounded-md flex items-center justify-center border transition-colors ${
+              selected
+                ? 'bg-ambar border-ambar text-navy-deep'
+                : 'bg-navy-deep/80 border-lavanda/40 text-transparent hover:border-ambar'
+            }`}
+            title={selected ? 'Quitar de la selección' : 'Seleccionar'}
+          >
+            <Check className="w-4 h-4" />
+          </button>
+        )}
         {thumb ? (
           <img src={thumb} alt={model.name} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform" />
         ) : (
