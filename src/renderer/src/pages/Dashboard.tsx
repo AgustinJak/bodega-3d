@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Boxes, Layers, Tag, Printer, Calculator, Plus } from 'lucide-react'
 import { api } from '../lib/api'
+import type { PrinterState } from '../lib/api'
 import { formatInt } from '../lib/format'
 import type { Stats, ModelListItem } from '../types'
 import ModelCard from '../components/ModelCard'
@@ -9,11 +10,20 @@ import ModelCard from '../components/ModelCard'
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recent, setRecent] = useState<ModelListItem[]>([])
+  const [printers, setPrinters] = useState<PrinterState[]>([])
 
   useEffect(() => {
     api.getStats().then(setStats)
     api.listModels().then((m) => setRecent(m.slice(0, 6)))
+    api.bambuStatus().then((s) => setPrinters(s.printers))
+    const off = api.onBambuUpdate(setPrinters)
+    return off
   }, [])
+
+  const printing = printers.filter((p) => p.state === 'RUNNING' || p.state === 'PREPARE').length
+  const withError = printers.filter((p) => p.errorText || p.state === 'FAILED').length
+  const offline = printers.filter((p) => p.state === 'OFFLINE').length
+  const free = printers.length - printing - withError - offline
 
   const cards = [
     { label: 'Modelos', value: stats?.models, icon: Boxes, color: 'text-ambar' },
@@ -57,6 +67,24 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {printers.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold text-niebla">Impresoras</h2>
+            <Link to="/impresoras" className="text-sm text-ambar hover:text-ambar-light">
+              Ver panel →
+            </Link>
+          </div>
+          <div className="rounded-xl bg-navy border border-lavanda/10 p-5 flex flex-wrap gap-x-8 gap-y-3">
+            <FarmStat label="Imprimiendo" value={printing} color="text-ambar" dot="bg-ambar" />
+            <FarmStat label="Libres" value={free} color="text-lavanda-light" dot="bg-lavanda" />
+            <FarmStat label="Con error" value={withError} color="text-red-400" dot="bg-red-400" />
+            {offline > 0 && <FarmStat label="Apagadas" value={offline} color="text-lavanda/40" dot="bg-lavanda/30" />}
+            <div className="ml-auto flex items-center text-sm text-lavanda/40">{printers.length} en total</div>
+          </div>
+        </section>
+      )}
+
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-display text-lg font-semibold text-niebla">Últimos modelos</h2>
@@ -74,6 +102,16 @@ export default function Dashboard() {
           </div>
         )}
       </section>
+    </div>
+  )
+}
+
+function FarmStat({ label, value, color, dot }: { label: string; value: number; color: string; dot: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
+      <span className={`text-2xl font-bold ${color}`}>{value}</span>
+      <span className="text-sm text-lavanda/60">{label}</span>
     </div>
   )
 }

@@ -35,6 +35,17 @@ interface BodegaApi {
   deleteImage: (imageId: string) => Promise<boolean>
   setThumbnail: (modelId: string, filePath: string) => Promise<boolean>
   copyImage: (filePath: string) => Promise<boolean>
+  getAppConfig: () => Promise<{
+    notifications: boolean
+    closeBehavior: 'ask' | 'tray' | 'quit'
+    startWithWindows: boolean
+    startMinimized: boolean
+  }>
+  setNotifications: (on: boolean) => Promise<boolean>
+  setCloseBehavior: (v: 'ask' | 'tray' | 'quit') => Promise<boolean>
+  setAutostart: (enabled: boolean, minimized: boolean) => Promise<boolean>
+  onAskClose: (cb: () => void) => () => void
+  respondClose: (choice: 'tray' | 'quit' | 'cancel', remember: boolean) => void
   getSettings: () => Promise<Record<string, string>>
   setSetting: (key: string, value: string) => Promise<boolean>
   getStats: () => Promise<Stats>
@@ -59,6 +70,11 @@ interface BodegaApi {
   bambuLogout: () => Promise<boolean>
   bambuRefresh: () => Promise<PrinterState[]>
   onBambuUpdate: (cb: (printers: PrinterState[]) => void) => () => void
+  getCam: (serial: string) => Promise<{ ip: string; code: string } | null>
+  setCam: (serial: string, ip: string, code: string) => Promise<boolean>
+  camStart: (serial: string) => Promise<{ ok: boolean; error?: string }>
+  camStop: (serial: string) => Promise<boolean>
+  onCamFrame: (cb: (data: { serial: string; frame?: string; error?: string; closed?: boolean }) => void) => () => void
 }
 
 export interface PrinterState {

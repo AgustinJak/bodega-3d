@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
-  Coins, Boxes, Tag as TagIcon, Layers, Layers3, Database, Save, Check, Plus, Trash2, Pencil, FolderOpen, HardDriveDownload, X, RefreshCw, ExternalLink, Download
+  Coins, Boxes, Tag as TagIcon, Layers, Layers3, Database, Save, Check, Plus, Trash2, Pencil, FolderOpen, HardDriveDownload, X, RefreshCw, ExternalLink, Download, Bell
 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { UpdateStatus } from '../lib/api'
 import { settingsFromMap, DEFAULT_COST_SETTINGS } from '../lib/calc'
 import type { CostSettings, Category, Tag } from '../types'
 
-type Section = 'costos' | 'listas' | 'categorias' | 'tags' | 'slicer' | 'datos' | 'updates'
+type Section = 'costos' | 'listas' | 'categorias' | 'tags' | 'slicer' | 'datos' | 'app' | 'updates'
 
 const TABS: { id: Section; label: string; icon: any }[] = [
   { id: 'costos', label: 'Costos', icon: Coins },
@@ -16,6 +16,7 @@ const TABS: { id: Section; label: string; icon: any }[] = [
   { id: 'tags', label: 'Tags', icon: TagIcon },
   { id: 'slicer', label: 'BambuStudio', icon: Layers3 },
   { id: 'datos', label: 'Datos', icon: Database },
+  { id: 'app', label: 'Aplicación', icon: Bell },
   { id: 'updates', label: 'Actualizaciones', icon: RefreshCw }
 ]
 
@@ -43,6 +44,7 @@ export default function Configuracion() {
       {tab === 'tags' && <TagsSection />}
       {tab === 'slicer' && <SlicerSection />}
       {tab === 'datos' && <DatosSection />}
+      {tab === 'app' && <AppSection />}
       {tab === 'updates' && <UpdatesSection />}
     </div>
   )
@@ -377,6 +379,88 @@ function DatosSection() {
         </button>
       </div>
       {msg && <p className="text-xs text-green-400 break-all">{msg}</p>}
+    </div>
+  )
+}
+
+/* ---------------- Aplicación ---------------- */
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!on)}
+      className={`relative w-10 h-6 rounded-full transition-colors ${on ? 'bg-ambar' : 'bg-lavanda/20'}`}
+    >
+      <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-navy-deep transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
+    </button>
+  )
+}
+
+function Row({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2">
+      <div className="min-w-0">
+        <p className="text-sm text-niebla">{title}</p>
+        {desc && <p className="text-xs text-lavanda/50 mt-0.5">{desc}</p>}
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  )
+}
+
+function AppSection() {
+  const [cfg, setCfg] = useState<{
+    notifications: boolean
+    closeBehavior: 'ask' | 'tray' | 'quit'
+    startWithWindows: boolean
+    startMinimized: boolean
+  }>({ notifications: true, closeBehavior: 'ask', startWithWindows: false, startMinimized: false })
+
+  useEffect(() => {
+    api.getAppConfig().then(setCfg)
+  }, [])
+
+  async function setNotif(v: boolean) {
+    setCfg((c) => ({ ...c, notifications: v }))
+    await api.setNotifications(v)
+  }
+  async function setClose(v: 'ask' | 'tray' | 'quit') {
+    setCfg((c) => ({ ...c, closeBehavior: v }))
+    await api.setCloseBehavior(v)
+  }
+  async function setAuto(enabled: boolean, minimized: boolean) {
+    setCfg((c) => ({ ...c, startWithWindows: enabled, startMinimized: minimized }))
+    await api.setAutostart(enabled, minimized)
+  }
+
+  return (
+    <div className="max-w-2xl space-y-4">
+      <div className="rounded-xl bg-navy border border-lavanda/10 p-5 divide-y divide-lavanda/10">
+        <Row title="Notificaciones de escritorio" desc="Avisos cuando una impresora termina, falla o tiene un error.">
+          <Toggle on={cfg.notifications} onChange={setNotif} />
+        </Row>
+        <Row title="Al cerrar la ventana" desc="Minimizar deja la app en segundo plano para seguir recibiendo notificaciones.">
+          <select
+            value={cfg.closeBehavior}
+            onChange={(e) => setClose(e.target.value as any)}
+            className={input + ' w-auto'}
+          >
+            <option value="ask">Preguntar siempre</option>
+            <option value="tray">Minimizar a la bandeja</option>
+            <option value="quit">Cerrar la aplicación</option>
+          </select>
+        </Row>
+      </div>
+
+      <div className="rounded-xl bg-navy border border-lavanda/10 p-5 divide-y divide-lavanda/10">
+        <Row title="Iniciar con Windows" desc="Abre la Bodega automáticamente cuando prendés la PC.">
+          <Toggle on={cfg.startWithWindows} onChange={(v) => setAuto(v, cfg.startMinimized)} />
+        </Row>
+        <Row title="Iniciar minimizado en la bandeja" desc="Arranca en segundo plano (sin abrir la ventana), solo el ícono de la bandeja.">
+          <div className={cfg.startWithWindows ? '' : 'opacity-40 pointer-events-none'}>
+            <Toggle on={cfg.startMinimized} onChange={(v) => setAuto(cfg.startWithWindows, v)} />
+          </div>
+        </Row>
+      </div>
     </div>
   )
 }

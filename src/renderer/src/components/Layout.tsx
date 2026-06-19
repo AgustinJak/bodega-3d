@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import UpdateBanner from './UpdateBanner'
+import CloseDialog from './CloseDialog'
 
 export default function Layout() {
   return (
@@ -12,6 +13,7 @@ export default function Layout() {
         </div>
       </main>
       <UpdateBanner />
+      <CloseDialog />
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { ipcMain, type BrowserWindow } from 'electron'
+import { ipcMain, Notification, type BrowserWindow } from 'electron'
 import mqtt, { type MqttClient } from 'mqtt'
 import { getDb } from './db'
 
@@ -178,8 +178,49 @@ function computeState(d: DeviceInfo): PrinterState {
   }
 }
 
+// Notificaciones de escritorio en transiciones (terminó / falló / error)
+const prevNotify = new Map<string, { state: string; errorText: string | null }>()
+function notify(title: string, body: string): void {
+  try {
+    if (!Notification.isSupported()) return
+    const n = new Notification({ title, body })
+    n.on('click', () => {
+      const w = getWin?.()
+      if (w) {
+        if (w.isMinimized()) w.restore()
+        w.show()
+        w.focus()
+      }
+    })
+    n.show()
+  } catch {
+    /* noop */
+  }
+}
+function checkNotifications(states: PrinterState[]): void {
+  const enabled = setting('notifications_enabled') !== '0'
+  let hidden = new Set<string>()
+  try {
+    const h = setting('bambu_hidden')
+    if (h) hidden = new Set(JSON.parse(h))
+  } catch {
+    /* noop */
+  }
+  for (const s of states) {
+    const prev = prevNotify.get(s.serial)
+    // Solo notificar transiciones reales, si están habilitadas y la impresora no está oculta
+    if (prev && enabled && !hidden.has(s.serial)) {
+      if (s.state === 'FINISH' && prev.state !== 'FINISH') notify('✅ Impresión terminada', `${s.name} terminó.`)
+      else if (s.state === 'FAILED' && prev.state !== 'FAILED') notify('❌ Falló la impresión', `${s.name} falló.`)
+      if (s.errorText && s.errorText !== prev.errorText) notify(`⚠️ ${s.name}`, s.errorText)
+    }
+    prevNotify.set(s.serial, { state: s.state, errorText: s.errorText })
+  }
+}
+
 function broadcast(): void {
   const states = devices.map(computeState)
+  checkNotifications(states)
   try {
     getWin?.()?.webContents.send('bambu:update', states)
   } catch {

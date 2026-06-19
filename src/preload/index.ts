@@ -34,6 +34,19 @@ const api = {
   setThumbnail: (modelId: string, filePath: string) => ipcRenderer.invoke('images:setThumbnail', modelId, filePath),
   copyImage: (filePath: string) => ipcRenderer.invoke('clipboard:copyImage', filePath),
 
+  // Config de la app (notificaciones, cierre, autostart)
+  getAppConfig: () => ipcRenderer.invoke('appcfg:get'),
+  setNotifications: (on: boolean) => ipcRenderer.invoke('appcfg:setNotifications', on),
+  setCloseBehavior: (v: string) => ipcRenderer.invoke('appcfg:setCloseBehavior', v),
+  setAutostart: (enabled: boolean, minimized: boolean) => ipcRenderer.invoke('appcfg:setAutostart', enabled, minimized),
+  onAskClose: (cb: () => void) => {
+    const listener = () => cb()
+    ipcRenderer.on('app:ask-close', listener)
+    return () => ipcRenderer.removeListener('app:ask-close', listener)
+  },
+  respondClose: (choice: 'tray' | 'quit' | 'cancel', remember: boolean) =>
+    ipcRenderer.send('app:close-choice', { choice, remember }),
+
   // Settings & stats
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSetting: (key: string, value: string) => ipcRenderer.invoke('settings:set', key, value),
@@ -72,6 +85,17 @@ const api = {
     const listener = (_e: unknown, data: any[]) => cb(data)
     ipcRenderer.on('bambu:update', listener)
     return () => ipcRenderer.removeListener('bambu:update', listener)
+  },
+
+  // Cámara (local, requiere LAN Mode Liveview + IP + access code)
+  getCam: (serial: string) => ipcRenderer.invoke('bambu:getCam', serial),
+  setCam: (serial: string, ip: string, code: string) => ipcRenderer.invoke('bambu:setCam', serial, ip, code),
+  camStart: (serial: string) => ipcRenderer.invoke('bambu:camStart', serial),
+  camStop: (serial: string) => ipcRenderer.invoke('bambu:camStop', serial),
+  onCamFrame: (cb: (data: { serial: string; frame?: string; error?: string; closed?: boolean }) => void) => {
+    const listener = (_e: unknown, data: any) => cb(data)
+    ipcRenderer.on('bambu:cam', listener)
+    return () => ipcRenderer.removeListener('bambu:cam', listener)
   }
 }
 

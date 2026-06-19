@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Printer, LogOut, RefreshCw, Thermometer, Clock, AlertTriangle, Loader2, GripVertical, EyeOff, Eye
+  Printer, LogOut, RefreshCw, Thermometer, Clock, AlertTriangle, Loader2, GripVertical, EyeOff, Eye, Camera, X
 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { PrinterState } from '../lib/api'
@@ -238,7 +238,7 @@ function PrinterCard({ p, onHide }: { p: PrinterState; onHide: () => void }) {
         </div>
       )}
 
-      <div className="flex items-center gap-4 text-xs text-lavanda/60">
+      <div className="flex items-center gap-4 text-xs text-lavanda/60 flex-wrap">
         {p.nozzleTemp != null && (
           <span className="flex items-center gap-1"><Thermometer className="w-3 h-3 text-orange-400" /> Boquilla {p.nozzleTemp}°</span>
         )}
@@ -251,6 +251,121 @@ function PrinterCard({ p, onHide }: { p: PrinterState; onHide: () => void }) {
         <div className="flex items-start gap-2 text-xs text-red-400 bg-red-500/10 rounded-lg px-2.5 py-1.5">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           <span>{p.errorText}</span>
+        </div>
+      )}
+
+      <CameraPanel serial={p.serial} />
+    </div>
+  )
+}
+
+function CameraPanel({ serial }: { serial: string }) {
+  const [open, setOpen] = useState(false)
+  const [cfg, setCfg] = useState<{ ip: string; code: string } | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [ip, setIp] = useState('')
+  const [code, setCode] = useState('')
+  const [frame, setFrame] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    api.getCam(serial).then((c) => {
+      setCfg(c)
+      if (c) {
+        setIp(c.ip)
+        setCode(c.code)
+      }
+    })
+  }, [serial])
+
+  useEffect(() => {
+    if (!open || editing) return
+    const off = api.onCamFrame((d) => {
+      if (d.serial !== serial) return
+      if (d.frame) {
+        setFrame(d.frame)
+        setError('')
+      }
+      if (d.error) setError(d.error)
+    })
+    return () => {
+      off()
+      api.camStop(serial)
+    }
+  }, [open, editing, serial])
+
+  // evita que el drag de la tarjeta interfiera con los controles
+  const stop = (e: React.MouseEvent) => e.stopPropagation()
+
+  async function view() {
+    if (!cfg) {
+      setEditing(true)
+      setOpen(true)
+      return
+    }
+    setError('')
+    setFrame(null)
+    setOpen(true)
+    const r = await api.camStart(serial)
+    if (!r.ok) setError(r.error || 'No se pudo iniciar la cámara.')
+  }
+  async function saveAndView() {
+    if (!ip.trim() || !code.trim()) return
+    await api.setCam(serial, ip, code)
+    setCfg({ ip: ip.trim(), code: code.trim() })
+    setEditing(false)
+    setError('')
+    setFrame(null)
+    const r = await api.camStart(serial)
+    if (!r.ok) setError(r.error || 'No se pudo iniciar la cámara.')
+  }
+  function close() {
+    api.camStop(serial)
+    setOpen(false)
+    setFrame(null)
+  }
+
+  const inputCls = 'w-full rounded-md bg-navy-deep border border-lavanda/15 px-2 py-1 text-xs text-niebla focus:outline-none focus:border-ambar/50'
+
+  if (!open) {
+    return (
+      <button
+        onClick={(e) => { stop(e); view() }}
+        className="flex items-center gap-1.5 text-xs text-lavanda/50 hover:text-ambar"
+      >
+        <Camera className="w-3.5 h-3.5" /> Ver cámara
+      </button>
+    )
+  }
+
+  return (
+    <div className="rounded-lg bg-navy-deep border border-lavanda/10 p-2 space-y-2" onMouseDown={stop}>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] text-lavanda/50 flex items-center gap-1"><Camera className="w-3 h-3" /> Cámara</span>
+        <div className="flex items-center gap-2">
+          {cfg && !editing && (
+            <button onClick={() => setEditing(true)} className="text-[10px] text-lavanda/40 hover:text-lavanda">Configurar</button>
+          )}
+          <button onClick={close} className="text-lavanda/40 hover:text-niebla"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      </div>
+
+      {editing ? (
+        <div className="space-y-2">
+          <input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="IP local (ej. 192.168.0.45)" className={inputCls} />
+          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Access Code (pantalla de la impresora)" className={inputCls} />
+          <button onClick={saveAndView} className="w-full px-2 py-1.5 rounded-md bg-ambar text-navy-deep text-xs font-medium hover:bg-ambar-light">
+            Guardar y ver
+          </button>
+          <p className="text-[10px] text-lavanda/30">Activá "LAN Mode Liveview" en la impresora (Ajustes). No la saca de la nube.</p>
+        </div>
+      ) : frame ? (
+        <img src={frame} alt="cámara" className="w-full rounded-md" />
+      ) : error ? (
+        <p className="text-[11px] text-red-400">{error}</p>
+      ) : (
+        <div className="flex items-center justify-center py-6 text-lavanda/40 text-xs gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" /> Conectando…
         </div>
       )}
     </div>
