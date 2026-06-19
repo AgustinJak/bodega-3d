@@ -11,19 +11,28 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [recent, setRecent] = useState<ModelListItem[]>([])
   const [printers, setPrinters] = useState<PrinterState[]>([])
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     api.getStats().then(setStats)
     api.listModels().then((m) => setRecent(m.slice(0, 6)))
     api.bambuStatus().then((s) => setPrinters(s.printers))
+    api.getSettings().then((m) => {
+      try {
+        if (m.bambu_hidden) setHidden(new Set(JSON.parse(m.bambu_hidden)))
+      } catch {
+        /* noop */
+      }
+    })
     const off = api.onBambuUpdate(setPrinters)
     return off
   }, [])
 
-  const printing = printers.filter((p) => p.state === 'RUNNING' || p.state === 'PREPARE').length
-  const withError = printers.filter((p) => p.errorText || p.state === 'FAILED').length
-  const offline = printers.filter((p) => p.state === 'OFFLINE').length
-  const free = printers.length - printing - withError - offline
+  const visible = printers.filter((p) => !hidden.has(p.serial))
+  const printing = visible.filter((p) => p.state === 'RUNNING' || p.state === 'PREPARE').length
+  const withError = visible.filter((p) => p.errorText || p.state === 'FAILED').length
+  const offline = visible.filter((p) => p.state === 'OFFLINE').length
+  const free = visible.length - printing - withError - offline
 
   const cards = [
     { label: 'Modelos', value: stats?.models, icon: Boxes, color: 'text-ambar' },
@@ -67,7 +76,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {printers.length > 0 && (
+      {visible.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display text-lg font-semibold text-niebla">Impresoras</h2>
@@ -80,7 +89,7 @@ export default function Dashboard() {
             <FarmStat label="Libres" value={free} color="text-lavanda-light" dot="bg-lavanda" />
             <FarmStat label="Con error" value={withError} color="text-red-400" dot="bg-red-400" />
             {offline > 0 && <FarmStat label="Apagadas" value={offline} color="text-lavanda/40" dot="bg-lavanda/30" />}
-            <div className="ml-auto flex items-center text-sm text-lavanda/40">{printers.length} en total</div>
+            <div className="ml-auto flex items-center text-sm text-lavanda/40">{visible.length} en total</div>
           </div>
         </section>
       )}
