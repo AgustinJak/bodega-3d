@@ -97,6 +97,9 @@ function createWindow(): void {
     }
   })
 
+  // Evitar que se abran ventanas nuevas (ej. clic del medio en un modelo abría una ventana en blanco)
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+
   // Interceptar el cierre según preferencia (preguntar / bandeja / cerrar)
   mainWindow.on('close', (e) => {
     if (isQuiting) return

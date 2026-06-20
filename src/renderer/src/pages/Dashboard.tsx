@@ -29,10 +29,17 @@ export default function Dashboard() {
   }, [])
 
   const visible = printers.filter((p) => !hidden.has(p.serial))
-  const printing = visible.filter((p) => p.state === 'RUNNING' || p.state === 'PREPARE').length
-  const withError = visible.filter((p) => p.errorText || p.state === 'FAILED').length
-  const offline = visible.filter((p) => p.state === 'OFFLINE').length
-  const free = visible.length - printing - withError - offline
+  // Categorías mutuamente excluyentes (cada impresora cuenta una sola vez)
+  let printing = 0
+  let withError = 0
+  let offline = 0
+  let free = 0
+  for (const p of visible) {
+    if (p.errorText || p.state === 'FAILED') withError++
+    else if (p.state === 'OFFLINE') offline++
+    else if (p.state === 'RUNNING' || p.state === 'PREPARE') printing++
+    else free++
+  }
 
   const cards = [
     { label: 'Modelos', value: stats?.models, icon: Boxes, color: 'text-ambar' },
