@@ -6,7 +6,7 @@ import {
 import { api } from '../lib/api'
 import type { ModelDetail } from '../types'
 import { mediaUrl } from '../lib/media'
-import { formatARS, formatGrams, formatInt, formatPrintTime } from '../lib/format'
+import { money, formatGrams, formatInt, formatPrintTime } from '../lib/format'
 
 export default function ModeloDetalle() {
   const { id } = useParams<{ id: string }>()
@@ -239,12 +239,12 @@ export default function ModeloDetalle() {
               {cost.insumos > 0 && <Row label="Insumos" value={cost.insumos} />}
               <div className="flex justify-between items-center pt-2 border-t border-lavanda/10">
                 <span className="text-sm font-semibold text-ambar">Total a cobrar</span>
-                <span className="text-lg font-bold text-ambar">$ {formatARS(cost.totalACobrar)}</span>
+                <span className="text-lg font-bold text-ambar">{money(cost.totalACobrar)}</span>
               </div>
               {cost.precioML != null && (
                 <div className="flex justify-between items-center text-xs text-lavanda/60">
                   <span>Precio MercadoLibre (x1.8)</span>
-                  <span>$ {formatARS(cost.precioML)}</span>
+                  <span>{money(cost.precioML)}</span>
                 </div>
               )}
             </div>
@@ -277,7 +277,7 @@ function Row({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex justify-between items-center text-sm">
       <span className="text-lavanda/70">{label}</span>
-      <span className="text-niebla font-medium">$ {formatARS(value)}</span>
+      <span className="text-niebla font-medium">{money(value)}</span>
     </div>
   )
 }

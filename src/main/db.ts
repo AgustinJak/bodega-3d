@@ -5,6 +5,17 @@ import { existsSync, mkdirSync, copyFileSync } from 'fs'
 
 let _db: Database.Database | null = null
 
+export function closeDb(): void {
+  if (_db) {
+    try {
+      _db.close()
+    } catch {
+      /* noop */
+    }
+    _db = null
+  }
+}
+
 export function getStorageDir(): string {
   const dir = join(app.getPath('userData'), 'storage')
   mkdirSync(join(dir, 'models'), { recursive: true })

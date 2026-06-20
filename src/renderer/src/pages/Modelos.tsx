@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Plus, PackageOpen, Download, Upload, Loader2, CheckSquare } from 'lucide-react'
+import { Search, Plus, PackageOpen, Download, Upload, Loader2, CheckSquare, Tags, X } from 'lucide-react'
+import CategoryTagManager from '../components/CategoryTagManager'
 import { api } from '../lib/api'
 import type { ModelListItem, Category } from '../types'
 import ModelCard from '../components/ModelCard'
@@ -14,6 +15,7 @@ export default function Modelos() {
   const [busy, setBusy] = useState<'' | 'export' | 'import'>('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [selectMode, setSelectMode] = useState(false)
+  const [showOrg, setShowOrg] = useState(false)
   const [progress, setProgress] = useState<{ phase: 'export' | 'import'; current: number; total: number; name: string } | null>(null)
 
   useEffect(() => {
@@ -86,6 +88,13 @@ export default function Modelos() {
           <p className="text-sm text-lavanda/60 mt-1">{models.length} modelos en la biblioteca</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowOrg(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-lavanda/20 text-sm text-lavanda-light hover:bg-lavanda/5"
+            title="Administrar categorías y tags"
+          >
+            <Tags className="w-4 h-4" /> Categorías
+          </button>
           <button
             onClick={() => {
               setSelectMode((s) => !s)
@@ -193,6 +202,37 @@ export default function Modelos() {
                 style={{ width: `${progress.total ? Math.round((progress.current / progress.total) * 100) : 0}%` }}
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {showOrg && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fade_0.12s_ease-out] p-6"
+          onClick={() => {
+            setShowOrg(false)
+            api.listCategories().then(setCategories)
+            load()
+          }}
+        >
+          <div
+            className="w-[560px] max-w-[92vw] max-h-[85vh] overflow-y-auto rounded-2xl bg-navy border border-lavanda/15 shadow-2xl p-6 animate-[slide-up_0.18s_ease-out]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-xl font-bold text-niebla">Categorías y tags</h2>
+              <button
+                onClick={() => {
+                  setShowOrg(false)
+                  api.listCategories().then(setCategories)
+                  load()
+                }}
+                className="text-lavanda/40 hover:text-niebla"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <CategoryTagManager />
           </div>
         </div>
       )}

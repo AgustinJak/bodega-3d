@@ -1,23 +1,18 @@
 import { useEffect, useState } from 'react'
 import {
-  Coins, Boxes, Tag as TagIcon, Layers, Layers3, Database, Save, Check, Plus, Trash2, Pencil, FolderOpen, HardDriveDownload, X, RefreshCw, ExternalLink, Download, Bell
+  Coins, Bell, Save, Check, Plus, X, FolderOpen, HardDriveDownload, Trash2, Undo2, RefreshCw, ExternalLink, Download, DollarSign
 } from 'lucide-react'
 import { api } from '../lib/api'
 import type { UpdateStatus } from '../lib/api'
 import { settingsFromMap, DEFAULT_COST_SETTINGS } from '../lib/calc'
-import type { CostSettings, Category, Tag } from '../types'
+import { setCurrencySymbol } from '../lib/format'
+import type { CostSettings } from '../types'
 
-type Section = 'costos' | 'listas' | 'categorias' | 'tags' | 'slicer' | 'datos' | 'app' | 'updates'
+type Section = 'costos' | 'app'
 
 const TABS: { id: Section; label: string; icon: any }[] = [
   { id: 'costos', label: 'Costos', icon: Coins },
-  { id: 'listas', label: 'Materiales e impresoras', icon: Boxes },
-  { id: 'categorias', label: 'Categorías', icon: Layers },
-  { id: 'tags', label: 'Tags', icon: TagIcon },
-  { id: 'slicer', label: 'BambuStudio', icon: Layers3 },
-  { id: 'datos', label: 'Datos', icon: Database },
-  { id: 'app', label: 'Aplicación', icon: Bell },
-  { id: 'updates', label: 'Actualizaciones', icon: RefreshCw }
+  { id: 'app', label: 'Aplicación', icon: Bell }
 ]
 
 export default function Configuracion() {
@@ -30,7 +25,7 @@ export default function Configuracion() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
               tab === t.id ? 'bg-purpura/20 text-ambar font-medium' : 'text-lavanda-light hover:bg-lavanda/5'
             }`}
           >
@@ -38,20 +33,32 @@ export default function Configuracion() {
           </button>
         ))}
       </div>
-      {tab === 'costos' && <CostosSection />}
-      {tab === 'listas' && <ListasSection />}
-      {tab === 'categorias' && <CategoriasSection />}
-      {tab === 'tags' && <TagsSection />}
-      {tab === 'slicer' && <SlicerSection />}
-      {tab === 'datos' && <DatosSection />}
-      {tab === 'app' && <AppSection />}
-      {tab === 'updates' && <UpdatesSection />}
+
+      {tab === 'costos' && (
+        <div className="space-y-4">
+          <CostosSection />
+          <ListasSection />
+          <CurrencySection />
+        </div>
+      )}
+      {tab === 'app' && (
+        <div className="space-y-4">
+          <AppSection />
+          <SlicerSection />
+          <DatosSection />
+          <UpdatesSection />
+        </div>
+      )}
     </div>
   )
 }
 
 const input =
   'w-full rounded-lg bg-navy border border-lavanda/15 px-3 py-2 text-sm text-niebla placeholder:text-lavanda/30 focus:outline-none focus:border-ambar/50'
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 className="text-xs uppercase tracking-wide text-lavanda/40 mb-2">{children}</h2>
+}
 
 function SavedBtn({ onClick, saved }: { onClick: () => void; saved: boolean }) {
   return (
@@ -94,6 +101,7 @@ function CostosSection() {
   ]
   return (
     <div className="max-w-2xl rounded-xl bg-navy border border-lavanda/10 p-5 space-y-4">
+      <SectionTitle>Parámetros de costo</SectionTitle>
       <p className="text-sm text-lavanda/60">Estos valores alimentan la calculadora de costos.</p>
       <div className="grid grid-cols-2 gap-4">
         {fields.map(([k, label]) => (
@@ -180,126 +188,34 @@ function ListasSection() {
   )
 }
 
-/* ---------------- Categorías ---------------- */
-function CategoriasSection() {
-  const [cats, setCats] = useState<Category[]>([])
-  const [newName, setNewName] = useState('')
-  const [newColor, setNewColor] = useState('#8B85B2')
-  const load = () => api.listCategories().then(setCats)
+/* ---------------- Moneda ---------------- */
+function CurrencySection() {
+  const [symbol, setSymbol] = useState('$')
+  const [saved, setSaved] = useState(false)
   useEffect(() => {
-    load()
+    api.getSettings().then((m) => setSymbol(m.currency_symbol || '$'))
   }, [])
-  async function create() {
-    if (!newName.trim()) return
-    await api.createCategory({ name: newName.trim(), color: newColor })
-    setNewName('')
-    load()
-  }
-  async function del(c: Category) {
-    if (!confirm(`¿Borrar la categoría "${c.name}"? Los modelos quedarán sin categoría.`)) return
-    await api.deleteCategory(c.id)
-    load()
-  }
-  return (
-    <div className="max-w-2xl space-y-4">
-      <div className="rounded-xl bg-navy border border-lavanda/10 p-4 flex gap-2 items-end">
-        <label className="flex-1">
-          <span className="text-xs text-lavanda/60 mb-1 block">Nueva categoría</span>
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} className={input} placeholder="Nombre" />
-        </label>
-        <input
-          type="color"
-          value={newColor}
-          onChange={(e) => setNewColor(e.target.value)}
-          className="w-10 h-10 rounded-lg bg-navy border border-lavanda/15 cursor-pointer"
-          title="Color"
-        />
-        <button onClick={create} className="px-4 py-2 rounded-lg bg-ambar text-navy-deep font-medium text-sm hover:bg-ambar-light">
-          <Plus className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="space-y-1.5">
-        {cats.map((c) => (
-          <CategoryRow key={c.id} cat={c} onChanged={load} onDelete={() => del(c)} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function CategoryRow({ cat, onChanged, onDelete }: { cat: Category; onChanged: () => void; onDelete: () => void }) {
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState(cat.name)
-  const [color, setColor] = useState(cat.color || '#8B85B2')
   async function save() {
-    await api.updateCategory(cat.id, { name: name.trim(), color })
-    setEditing(false)
-    onChanged()
+    const v = symbol.trim() || '$'
+    setSymbol(v)
+    setCurrencySymbol(v)
+    await api.setSetting('currency_symbol', v)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
   }
   return (
-    <div className="flex items-center gap-3 bg-navy border border-lavanda/10 rounded-lg px-3 py-2">
-      <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: cat.color || '#8B85B2' }} />
-      {editing ? (
-        <>
-          <input value={name} onChange={(e) => setName(e.target.value)} className={`${input} flex-1`} />
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer bg-transparent" />
-          <button onClick={save} className="text-ambar hover:text-ambar-light">
-            <Check className="w-4 h-4" />
-          </button>
-        </>
-      ) : (
-        <>
-          <span className="flex-1 text-sm text-niebla">{cat.name}</span>
-          <span className="text-xs text-lavanda/40">{cat.modelCount ?? 0} modelos</span>
-          <button onClick={() => setEditing(true)} className="text-lavanda/50 hover:text-niebla">
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button onClick={onDelete} className="text-lavanda/50 hover:text-red-400">
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </>
-      )}
-    </div>
-  )
-}
-
-/* ---------------- Tags ---------------- */
-function TagsSection() {
-  const [tags, setTags] = useState<Tag[]>([])
-  const load = () => api.listTags().then(setTags)
-  useEffect(() => {
-    load()
-  }, [])
-  async function rename(t: Tag) {
-    const name = prompt('Nuevo nombre del tag:', t.name)
-    if (!name || !name.trim() || name.trim() === t.name) return
-    try {
-      await api.renameTag(t.id, name.trim())
-      load()
-    } catch {
-      alert('Ya existe un tag con ese nombre.')
-    }
-  }
-  async function del(t: Tag) {
-    if (!confirm(`¿Borrar el tag "${t.name}"? Se quitará de ${t.modelCount ?? 0} modelo(s).`)) return
-    await api.deleteTag(t.id)
-    load()
-  }
-  return (
-    <div className="max-w-2xl flex flex-wrap gap-2">
-      {tags.length === 0 && <p className="text-sm text-lavanda/40">No hay tags.</p>}
-      {tags.map((t) => (
-        <div key={t.id} className="flex items-center gap-2 bg-navy border border-lavanda/10 rounded-lg pl-3 pr-2 py-1.5">
-          <span className="text-sm text-niebla">{t.name}</span>
-          <span className="text-[10px] text-lavanda/40">{t.modelCount ?? 0}</span>
-          <button onClick={() => rename(t)} className="text-lavanda/40 hover:text-niebla">
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => del(t)} className="text-lavanda/40 hover:text-red-400">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ))}
+    <div className="max-w-2xl rounded-xl bg-navy border border-lavanda/10 p-5 space-y-3">
+      <SectionTitle>Moneda</SectionTitle>
+      <div className="flex items-end gap-3">
+        <label className="w-40">
+          <span className="text-xs text-lavanda/60 mb-1 block flex items-center gap-1">
+            <DollarSign className="w-3 h-3" /> Símbolo
+          </span>
+          <input value={symbol} onChange={(e) => setSymbol(e.target.value)} className={input} placeholder="$" maxLength={6} />
+        </label>
+        <SavedBtn onClick={save} saved={saved} />
+      </div>
+      <p className="text-[11px] text-lavanda/40">Se usa en los precios (ej. {symbol} 1.234,56). Cambialo por US$, ARS, etc.</p>
     </div>
   )
 }
@@ -317,10 +233,8 @@ function SlicerSection() {
   }
   return (
     <div className="max-w-2xl rounded-xl bg-navy border border-lavanda/10 p-5 space-y-3">
-      <h3 className="text-sm font-semibold text-niebla">Ruta de BambuStudio</h3>
-      <p className="text-xs text-lavanda/60">
-        Se usa para abrir los modelos .3mf directamente en el slicer desde la ficha de cada modelo.
-      </p>
+      <SectionTitle>BambuStudio</SectionTitle>
+      <p className="text-xs text-lavanda/60">Para abrir los modelos .3mf directamente en el slicer desde la ficha de cada modelo.</p>
       <div className="bg-navy-deep rounded-lg px-3 py-2 text-sm break-all">
         {info.path ? (
           <span className={info.exists ? 'text-niebla' : 'text-red-400'}>
@@ -337,48 +251,79 @@ function SlicerSection() {
   )
 }
 
-/* ---------------- Datos ---------------- */
+/* ---------------- Datos + Backups ---------------- */
 function DatosSection() {
   const [paths, setPaths] = useState<{ storageDir: string; backupsDir: string } | null>(null)
+  const [backups, setBackups] = useState<{ name: string; size: number; mtime: number }[]>([])
   const [msg, setMsg] = useState('')
+
+  const loadBackups = () => api.listBackups().then(setBackups)
   useEffect(() => {
     api.getPaths().then((p) => setPaths({ storageDir: p.storageDir, backupsDir: p.backupsDir }))
+    loadBackups()
   }, [])
+
   async function backup() {
-    const dest = await api.backupNow()
-    setMsg(`Backup creado: ${dest}`)
-    setTimeout(() => setMsg(''), 4000)
+    await api.backupNow()
+    setMsg('Backup creado.')
+    setTimeout(() => setMsg(''), 3000)
+    loadBackups()
   }
+  async function restore(name: string) {
+    if (!confirm(`Restaurar "${name}"?\n\nSe reemplazará la base actual (se guarda un resguardo) y la app se reiniciará.`)) return
+    await api.restoreBackup(name)
+  }
+  async function del(name: string) {
+    if (!confirm(`¿Borrar el backup "${name}"?`)) return
+    await api.deleteBackup(name)
+    loadBackups()
+  }
+
   return (
     <div className="max-w-2xl rounded-xl bg-navy border border-lavanda/10 p-5 space-y-4">
+      <SectionTitle>Datos y backups</SectionTitle>
       <div>
-        <h3 className="text-sm font-semibold text-niebla mb-1">Carpeta de datos</h3>
         <p className="text-xs text-lavanda/50 break-all">{paths?.storageDir || '—'}</p>
-        <p className="text-[11px] text-lavanda/40 mt-1">
-          Acá viven la base de datos, los modelos, las imágenes y los backups automáticos (uno por día).
-        </p>
+        <p className="text-[11px] text-lavanda/40 mt-1">Acá viven la base, los modelos, las imágenes y los backups (uno automático por día).</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => paths && api.openPath(paths.storageDir)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-lavanda/20 text-sm text-lavanda-light hover:bg-lavanda/5"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-lavanda/20 text-sm text-lavanda-light hover:bg-lavanda/5"
         >
-          <FolderOpen className="w-4 h-4" /> Abrir carpeta de datos
-        </button>
-        <button
-          onClick={() => paths && api.openPath(paths.backupsDir)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-lavanda/20 text-sm text-lavanda-light hover:bg-lavanda/5"
-        >
-          <FolderOpen className="w-4 h-4" /> Ver backups
+          <FolderOpen className="w-4 h-4" /> Abrir carpeta
         </button>
         <button
           onClick={backup}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ambar text-navy-deep font-medium text-sm hover:bg-ambar-light"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-ambar text-navy-deep font-medium text-sm hover:bg-ambar-light"
         >
           <HardDriveDownload className="w-4 h-4" /> Hacer backup ahora
         </button>
+        {msg && <span className="text-xs text-green-400 self-center">{msg}</span>}
       </div>
-      {msg && <p className="text-xs text-green-400 break-all">{msg}</p>}
+
+      <div>
+        <p className="text-xs text-lavanda/50 mb-2">Backups guardados ({backups.length})</p>
+        <div className="space-y-1.5 max-h-64 overflow-y-auto">
+          {backups.length === 0 && <p className="text-xs text-lavanda/40">No hay backups.</p>}
+          {backups.map((b) => (
+            <div key={b.name} className="flex items-center gap-2 bg-navy-deep rounded-lg px-3 py-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-niebla truncate">{b.name}</p>
+                <p className="text-[10px] text-lavanda/40">
+                  {new Date(b.mtime).toLocaleString('es-AR')} · {(b.size / 1024).toFixed(0)} KB
+                </p>
+              </div>
+              <button onClick={() => restore(b.name)} className="flex items-center gap-1 text-[11px] text-ambar hover:text-ambar-light px-2 py-1" title="Restaurar este backup">
+                <Undo2 className="w-3.5 h-3.5" /> Restaurar
+              </button>
+              <button onClick={() => del(b.name)} className="text-lavanda/40 hover:text-red-400" title="Borrar">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -433,25 +378,19 @@ function AppSection() {
   }
 
   return (
-    <div className="max-w-2xl space-y-4">
-      <div className="rounded-xl bg-navy border border-lavanda/10 p-5 divide-y divide-lavanda/10">
+    <div className="max-w-2xl rounded-xl bg-navy border border-lavanda/10 p-5">
+      <SectionTitle>General</SectionTitle>
+      <div className="divide-y divide-lavanda/10">
         <Row title="Notificaciones de escritorio" desc="Avisos cuando una impresora termina, falla o tiene un error.">
           <Toggle on={cfg.notifications} onChange={setNotif} />
         </Row>
         <Row title="Al cerrar la ventana" desc="Minimizar deja la app en segundo plano para seguir recibiendo notificaciones.">
-          <select
-            value={cfg.closeBehavior}
-            onChange={(e) => setClose(e.target.value as any)}
-            className={input + ' w-auto'}
-          >
+          <select value={cfg.closeBehavior} onChange={(e) => setClose(e.target.value as any)} className={input + ' w-auto'}>
             <option value="ask">Preguntar siempre</option>
             <option value="tray">Minimizar a la bandeja</option>
             <option value="quit">Cerrar la aplicación</option>
           </select>
         </Row>
-      </div>
-
-      <div className="rounded-xl bg-navy border border-lavanda/10 p-5 divide-y divide-lavanda/10">
         <Row title="Iniciar con Windows" desc="Abre la Bodega automáticamente cuando prendés la PC.">
           <Toggle on={cfg.startWithWindows} onChange={(v) => setAuto(v, cfg.startMinimized)} />
         </Row>
@@ -513,10 +452,11 @@ function UpdatesSection() {
 
   return (
     <div className="max-w-2xl rounded-xl bg-navy border border-lavanda/10 p-5 space-y-4">
+      <SectionTitle>Actualizaciones</SectionTitle>
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-niebla">Versión instalada</h3>
-          <p className="text-2xl font-bold text-ambar mt-1">{version ? `v${version}` : '—'}</p>
+          <p className="text-xs text-lavanda/60">Versión instalada</p>
+          <p className="text-2xl font-bold text-ambar mt-0.5">{version ? `v${version}` : '—'}</p>
         </div>
         <button
           onClick={check}
@@ -551,10 +491,7 @@ function UpdatesSection() {
 
       {note && <p className="text-xs text-lavanda/60">{note}</p>}
 
-      <button
-        onClick={() => api.openReleases()}
-        className="flex items-center gap-2 text-xs text-lavanda/60 hover:text-ambar"
-      >
+      <button onClick={() => api.openReleases()} className="flex items-center gap-2 text-xs text-lavanda/60 hover:text-ambar">
         <ExternalLink className="w-3.5 h-3.5" /> Ver todas las versiones en GitHub
       </button>
     </div>

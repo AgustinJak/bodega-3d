@@ -27,6 +27,9 @@ const api = {
   getPaths: () => ipcRenderer.invoke('app:getPaths'),
   openPath: (p: string) => ipcRenderer.invoke('app:openPath', p),
   backupNow: () => ipcRenderer.invoke('app:backupNow'),
+  listBackups: () => ipcRenderer.invoke('app:listBackups'),
+  deleteBackup: (name: string) => ipcRenderer.invoke('app:deleteBackup', name),
+  restoreBackup: (name: string) => ipcRenderer.invoke('app:restoreBackup', name),
 
   // Images
   addImages: (modelId: string, sourcePaths: string[]) => ipcRenderer.invoke('images:add', modelId, sourcePaths),

@@ -6,7 +6,8 @@ import { setupUpdater } from './updater'
 import { setupBambu } from './bambu'
 import { setupBambuCam } from './bambu-cam'
 import { registerMigrationIpc } from './migration'
-import { getDb } from './db'
+import { getDb, getStorageDir, closeDb } from './db'
+import { existsSync, statSync, readdirSync, copyFileSync, rmSync } from 'fs'
 
 // Mismo nombre de app que la versión original → usa %APPDATA%\bodega-3d (datos existentes)
 app.setName('bodega-3d')
@@ -150,6 +151,47 @@ function registerAppConfigIpc(): void {
       console.error('setLoginItemSettings error', e)
     }
     return true
+  })
+
+  // ---- Gestión de backups ----
+  ipcMain.handle('app:listBackups', () => {
+    const dir = join(getStorageDir(), 'backups')
+    if (!existsSync(dir)) return []
+    return readdirSync(dir)
+      .filter((f) => f.endsWith('.db'))
+      .map((f) => {
+        const st = statSync(join(dir, f))
+        return { name: f, size: st.size, mtime: st.mtimeMs }
+      })
+      .sort((a, b) => b.mtime - a.mtime)
+  })
+  ipcMain.handle('app:deleteBackup', (_e, name: string) => {
+    const p = join(getStorageDir(), 'backups', name)
+    if (existsSync(p) && name.endsWith('.db')) rmSync(p, { force: true })
+    return true
+  })
+  ipcMain.handle('app:restoreBackup', (_e, name: string) => {
+    const storage = getStorageDir()
+    const src = join(storage, 'backups', name)
+    const dbPath = join(storage, 'bodega3d.db')
+    if (!existsSync(src)) return { ok: false, error: 'El backup no existe.' }
+    try {
+      // resguardo del estado actual antes de pisar
+      copyFileSync(dbPath, join(storage, 'backups', `pre-restore-${Date.now()}.db`))
+    } catch {
+      /* noop */
+    }
+    closeDb()
+    try {
+      rmSync(dbPath + '-wal', { force: true })
+      rmSync(dbPath + '-shm', { force: true })
+    } catch {
+      /* noop */
+    }
+    copyFileSync(src, dbPath)
+    app.relaunch()
+    app.exit(0)
+    return { ok: true }
   })
 
   // Respuesta del modal de cierre (renderer)

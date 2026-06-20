@@ -31,6 +31,9 @@ interface BodegaApi {
   getPaths: () => Promise<{ storageDir: string; dbPath: string; backupsDir: string; modelsDir: string }>
   openPath: (p: string) => Promise<string>
   backupNow: () => Promise<string>
+  listBackups: () => Promise<{ name: string; size: number; mtime: number }[]>
+  deleteBackup: (name: string) => Promise<boolean>
+  restoreBackup: (name: string) => Promise<{ ok: boolean; error?: string }>
   addImages: (modelId: string, sourcePaths: string[]) => Promise<ModelImage[]>
   deleteImage: (imageId: string) => Promise<boolean>
   setThumbnail: (modelId: string, filePath: string) => Promise<boolean>

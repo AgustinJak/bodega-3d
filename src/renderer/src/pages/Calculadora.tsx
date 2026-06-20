@@ -4,7 +4,7 @@ import { Calculator, Settings2, Save, Check } from 'lucide-react'
 import { api } from '../lib/api'
 import { calcCost, settingsFromMap, MULTIPLIERS, DEFAULT_COST_SETTINGS } from '../lib/calc'
 import type { CostSettings, ModelDetail } from '../types'
-import { formatARS } from '../lib/format'
+import { money } from '../lib/format'
 
 export default function Calculadora() {
   const [params] = useSearchParams()
@@ -191,14 +191,14 @@ export default function Calculadora() {
           {insumos > 0 && <Row label="Insumos" value={insumos} />}
           <div className="rounded-lg bg-ambar/10 border border-ambar/20 p-3 mt-3 flex justify-between items-center">
             <span className="text-sm font-bold text-ambar">TOTAL A COBRAR</span>
-            <span className="text-2xl font-bold text-ambar">$ {formatARS(result.totalACobrar)}</span>
+            <span className="text-2xl font-bold text-ambar">{money(result.totalACobrar)}</span>
           </div>
           <div className="rounded-lg bg-lavanda/5 p-3 flex justify-between items-center">
             <div>
               <span className="text-sm font-medium text-lavanda-light">Precio MercadoLibre</span>
               <p className="text-[10px] text-lavanda/40">Con comisión (x1.8)</p>
             </div>
-            <span className="text-lg font-bold text-lavanda-light">$ {formatARS(result.precioML)}</span>
+            <span className="text-lg font-bold text-lavanda-light">{money(result.precioML)}</span>
           </div>
 
           {modelId && (
@@ -236,7 +236,7 @@ function Row({ label, value, highlight }: { label: string; value: number; highli
   return (
     <div className="flex justify-between items-center text-sm">
       <span className={highlight ? 'text-niebla font-medium' : 'text-lavanda/70'}>{label}</span>
-      <span className={highlight ? 'text-niebla font-semibold' : 'text-niebla'}>$ {formatARS(value)}</span>
+      <span className={highlight ? 'text-niebla font-semibold' : 'text-niebla'}>{money(value)}</span>
     </div>
   )
 }
