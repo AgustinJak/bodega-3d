@@ -1,4 +1,5 @@
 import { ipcMain, Notification, type BrowserWindow } from 'electron'
+import { randomUUID } from 'crypto'
 import mqtt, { type MqttClient } from 'mqtt'
 import { getDb } from './db'
 
@@ -197,7 +198,31 @@ function notify(title: string, body: string): void {
     /* noop */
   }
 }
-function checkNotifications(states: PrinterState[]): void {
+// Registra un trabajo terminado o fallido en el historial (independiente de notificaciones)
+function recordJob(s: PrinterState, result: 'FINISH' | 'FAILED'): void {
+  try {
+    getDb()
+      .prepare(
+        `INSERT INTO print_jobs (id, serial, printerName, taskName, result, errorCode, errorText, totalLayers, endedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        randomUUID(),
+        s.serial,
+        s.name,
+        s.taskName,
+        result,
+        result === 'FAILED' ? (s.errorCode != null ? toHex8(s.errorCode) : null) : null,
+        result === 'FAILED' ? s.errorText : null,
+        s.totalLayers,
+        new Date().toISOString()
+      )
+  } catch (e: any) {
+    console.log('[bambu] no se pudo registrar el trabajo:', e?.message)
+  }
+}
+
+function checkTransitions(states: PrinterState[]): void {
   const enabled = setting('notifications_enabled') !== '0'
   let hidden = new Set<string>()
   try {
@@ -208,11 +233,18 @@ function checkNotifications(states: PrinterState[]): void {
   }
   for (const s of states) {
     const prev = prevNotify.get(s.serial)
-    // Solo notificar transiciones reales, si están habilitadas y la impresora no está oculta
-    if (prev && enabled && !hidden.has(s.serial)) {
-      if (s.state === 'FINISH' && prev.state !== 'FINISH') notify('✅ Impresión terminada', `${s.name} terminó.`)
-      else if (s.state === 'FAILED' && prev.state !== 'FAILED') notify('❌ Falló la impresión', `${s.name} falló.`)
-      if (s.errorText && s.errorText !== prev.errorText) notify(`⚠️ ${s.name}`, s.errorText)
+    if (prev) {
+      // Historial: registrar SIEMPRE la transición a terminado/fallido (no depende de notificaciones ni de ocultas)
+      const finished = s.state === 'FINISH' && prev.state !== 'FINISH'
+      const failed = s.state === 'FAILED' && prev.state !== 'FAILED'
+      if (finished) recordJob(s, 'FINISH')
+      else if (failed) recordJob(s, 'FAILED')
+      // Notificaciones: solo si están habilitadas y la impresora no está oculta
+      if (enabled && !hidden.has(s.serial)) {
+        if (finished) notify('✅ Impresión terminada', `${s.name} terminó.`)
+        else if (failed) notify('❌ Falló la impresión', `${s.name} falló.`)
+        if (s.errorText && s.errorText !== prev.errorText) notify(`⚠️ ${s.name}`, s.errorText)
+      }
     }
     prevNotify.set(s.serial, { state: s.state, errorText: s.errorText })
   }
@@ -220,7 +252,7 @@ function checkNotifications(states: PrinterState[]): void {
 
 function broadcast(): void {
   const states = devices.map(computeState)
-  checkNotifications(states)
+  checkTransitions(states)
   try {
     getWin?.()?.webContents.send('bambu:update', states)
   } catch {
@@ -345,6 +377,21 @@ export function setupBambu(getWindow: () => BrowserWindow | null): void {
       return r.ok ? { ok: true } : { ok: false, error: r.error }
     }
     return { ok: false, error: data.error || 'Código inválido o expirado.' }
+  })
+
+  ipcMain.handle('bambu:jobs', (_e, opts?: { serial?: string; limit?: number }) => {
+    const limit = Math.min(Math.max(opts?.limit ?? 200, 1), 1000)
+    if (opts?.serial) {
+      return getDb()
+        .prepare('SELECT * FROM print_jobs WHERE serial = ? ORDER BY endedAt DESC LIMIT ?')
+        .all(opts.serial, limit)
+    }
+    return getDb().prepare('SELECT * FROM print_jobs ORDER BY endedAt DESC LIMIT ?').all(limit)
+  })
+
+  ipcMain.handle('bambu:clearJobs', () => {
+    getDb().prepare('DELETE FROM print_jobs').run()
+    return true
   })
 
   ipcMain.handle('bambu:logout', () => {

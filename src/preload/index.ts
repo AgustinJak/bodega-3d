@@ -93,6 +93,8 @@ const api = {
   bambuLoginCode: (account: string, code: string) => ipcRenderer.invoke('bambu:loginCode', account, code),
   bambuLogout: () => ipcRenderer.invoke('bambu:logout'),
   bambuRefresh: () => ipcRenderer.invoke('bambu:refresh'),
+  bambuJobs: (opts?: { serial?: string; limit?: number }) => ipcRenderer.invoke('bambu:jobs', opts ?? {}),
+  bambuClearJobs: () => ipcRenderer.invoke('bambu:clearJobs'),
   onBambuUpdate: (cb: (printers: any[]) => void) => {
     const listener = (_e: unknown, data: any[]) => cb(data)
     ipcRenderer.on('bambu:update', listener)

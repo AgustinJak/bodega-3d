@@ -83,6 +83,11 @@ function migrate(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY, value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS print_jobs (
+      id TEXT PRIMARY KEY, serial TEXT NOT NULL, printerName TEXT, taskName TEXT,
+      result TEXT NOT NULL, errorCode TEXT, errorText TEXT, totalLayers INTEGER, endedAt TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_print_jobs_endedAt ON print_jobs(endedAt DESC);
   `)
 
   // Idempotent column adds (for older DBs)

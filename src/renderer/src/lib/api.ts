@@ -77,6 +77,8 @@ interface BodegaApi {
   bambuLoginCode: (account: string, code: string) => Promise<{ ok: boolean; error?: string }>
   bambuLogout: () => Promise<boolean>
   bambuRefresh: () => Promise<PrinterState[]>
+  bambuJobs: (opts?: { serial?: string; limit?: number }) => Promise<PrintJob[]>
+  bambuClearJobs: () => Promise<boolean>
   onBambuUpdate: (cb: (printers: PrinterState[]) => void) => () => void
   getCam: (serial: string) => Promise<{ ip: string; code: string } | null>
   setCam: (serial: string, ip: string, code: string) => Promise<boolean>
@@ -102,6 +104,18 @@ export interface PrinterState {
   hmsCount: number
   errorText: string | null
   updatedAt: number
+}
+
+export interface PrintJob {
+  id: string
+  serial: string
+  printerName: string | null
+  taskName: string | null
+  result: 'FINISH' | 'FAILED'
+  errorCode: string | null
+  errorText: string | null
+  totalLayers: number | null
+  endedAt: string
 }
 
 export interface UpdateStatus {

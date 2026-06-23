@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Printer, LogOut, RefreshCw, Thermometer, Clock, AlertTriangle, Loader2, GripVertical, EyeOff, Eye, Camera, X
+  Printer, LogOut, RefreshCw, Thermometer, Clock, AlertTriangle, Loader2, GripVertical, EyeOff, Eye, Camera, X,
+  LayoutGrid, History, CheckCircle2, XCircle, Trash2
 } from 'lucide-react'
 import { api } from '../lib/api'
-import type { PrinterState } from '../lib/api'
+import type { PrinterState, PrintJob } from '../lib/api'
 
 const ORDER_KEY = 'bambu_card_order'
 const HIDDEN_KEY = 'bambu_hidden'
@@ -15,6 +16,7 @@ export default function Impresoras() {
   const [order, setOrder] = useState<string[]>([])
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [drag, setDrag] = useState<string | null>(null)
+  const [tab, setTab] = useState<'estado' | 'historial'>('estado')
 
   useEffect(() => {
     api.bambuStatus().then((s) => {
@@ -86,7 +88,7 @@ export default function Impresoras() {
             {loggedIn ? `Conectado como ${account} · monitoreo en la nube` : 'Conectá tu cuenta de Bambu para ver el estado'}
           </p>
         </div>
-        {loggedIn && (
+        {loggedIn && tab === 'estado' && (
           <div className="flex gap-2">
             <button
               onClick={() => api.bambuRefresh().then(setPrinters)}
@@ -118,13 +120,26 @@ export default function Impresoras() {
             })
           }
         />
-      ) : printers.length === 0 ? (
-        <div className="rounded-xl bg-navy border border-lavanda/10 p-8 text-center">
-          <Loader2 className="w-8 h-8 text-lavanda/30 mx-auto mb-3 animate-spin" />
-          <p className="text-sm text-lavanda/60">Buscando impresoras y esperando datos…</p>
-        </div>
       ) : (
         <>
+          <div className="flex gap-1 border-b border-lavanda/10">
+            <TabButton active={tab === 'estado'} onClick={() => setTab('estado')} icon={<LayoutGrid className="w-4 h-4" />}>
+              Estado
+            </TabButton>
+            <TabButton active={tab === 'historial'} onClick={() => setTab('historial')} icon={<History className="w-4 h-4" />}>
+              Historial
+            </TabButton>
+          </div>
+
+          {tab === 'historial' ? (
+            <Historial printers={printers} />
+          ) : printers.length === 0 ? (
+            <div className="rounded-xl bg-navy border border-lavanda/10 p-8 text-center">
+              <Loader2 className="w-8 h-8 text-lavanda/30 mx-auto mb-3 animate-spin" />
+              <p className="text-sm text-lavanda/60">Buscando impresoras y esperando datos…</p>
+            </div>
+          ) : (
+            <>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {visible.map((serial) => {
               const p = bySerial[serial]
@@ -172,7 +187,165 @@ export default function Impresoras() {
           <p className="text-[11px] text-lavanda/30">
             Arrastrá las tarjetas para ordenarlas. Modo nube = solo lectura; para enviar impresiones usá Bambu Studio / Handy.
           </p>
+            </>
+          )}
         </>
+      )}
+    </div>
+  )
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  children
+}: {
+  active: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+        active ? 'border-ambar text-ambar' : 'border-transparent text-lavanda/50 hover:text-lavanda-light'
+      }`}
+    >
+      {icon} {children}
+    </button>
+  )
+}
+
+function fmtDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return iso
+  }
+}
+
+function Historial({ printers }: { printers: PrinterState[] }) {
+  const [jobs, setJobs] = useState<PrintJob[] | null>(null)
+  const [filter, setFilter] = useState<string>('')
+  const [busy, setBusy] = useState(false)
+
+  function load() {
+    setBusy(true)
+    api
+      .bambuJobs(filter ? { serial: filter } : undefined)
+      .then(setJobs)
+      .finally(() => setBusy(false))
+  }
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter])
+
+  // Opciones de filtro: impresoras conocidas + cualquier serial presente en el historial
+  const options = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of printers) map.set(p.serial, p.name)
+    for (const j of jobs ?? []) if (!map.has(j.serial)) map.set(j.serial, j.printerName || j.serial)
+    return [...map.entries()]
+  }, [printers, jobs])
+
+  async function clearAll() {
+    if (!confirm('¿Borrar todo el historial de trabajos? No se puede deshacer.')) return
+    await api.bambuClearJobs()
+    load()
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="rounded-lg bg-navy border border-lavanda/15 px-3 py-2 text-sm text-niebla focus:outline-none focus:border-ambar/50"
+        >
+          <option value="">Todas las impresoras</option>
+          {options.map(([serial, name]) => (
+            <option key={serial} value={serial}>
+              {name}
+            </option>
+          ))}
+        </select>
+        <div className="flex gap-2">
+          <button
+            onClick={load}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border border-lavanda/20 text-sm text-lavanda-light hover:bg-lavanda/5"
+          >
+            <RefreshCw className={`w-4 h-4 ${busy ? 'animate-spin' : ''}`} /> Actualizar
+          </button>
+          {jobs && jobs.length > 0 && (
+            <button
+              onClick={clearAll}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-red-500/20 text-sm text-red-400 hover:bg-red-500/10"
+            >
+              <Trash2 className="w-4 h-4" /> Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {jobs == null ? (
+        <p className="text-sm text-lavanda/50">Cargando…</p>
+      ) : jobs.length === 0 ? (
+        <div className="rounded-xl bg-navy border border-lavanda/10 p-8 text-center">
+          <History className="w-8 h-8 text-lavanda/25 mx-auto mb-3" />
+          <p className="text-sm text-lavanda/60">Todavía no hay trabajos registrados.</p>
+          <p className="text-xs text-lavanda/35 mt-1">
+            Se registran automáticamente cuando una impresora termina o falla un trabajo.
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {jobs.map((j) => {
+            const failed = j.result === 'FAILED'
+            return (
+              <li
+                key={j.id}
+                className={`flex items-start gap-3 rounded-xl bg-navy border p-3 ${
+                  failed ? 'border-red-500/30' : 'border-lavanda/10'
+                }`}
+              >
+                {failed ? (
+                  <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-niebla truncate" title={j.taskName || ''}>
+                      {j.taskName || 'Trabajo sin nombre'}
+                    </span>
+                    <span className="text-[11px] text-lavanda/40 shrink-0">{fmtDate(j.endedAt)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`text-xs font-medium ${failed ? 'text-red-400' : 'text-green-400'}`}>
+                      {failed ? 'Falló' : 'Terminado'}
+                    </span>
+                    <span className="text-xs text-lavanda/50">· {j.printerName || j.serial}</span>
+                  </div>
+                  {failed && j.errorText && (
+                    <p className="text-xs text-red-400/80 mt-1 flex items-start gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {j.errorText}
+                    </p>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )
